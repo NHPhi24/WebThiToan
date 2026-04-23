@@ -35,6 +35,7 @@ const ThucHienBaiThi = () => {
   const [submitting, setSubmitting] = useState(false);
   const [timeLeft, setTimeLeft] = useState(3600); // 60 phút mặc định
   const [totalTime, setTotalTime] = useState(3600);
+  const [examResultId, setExamResultId] = useState(null); // Lưu id bài thi
 
   // Khi vào trang, gọi BE random mã đề và lấy câu hỏi
   useEffect(() => {
@@ -55,6 +56,22 @@ const ThucHienBaiThi = () => {
         setQuestions(examRes.data.questions || []);
         setAnswers({});
         setCurrent(0);
+        // Tạo trước bản ghi kết quả với is_submitted=false (nếu chưa có)
+        let result;
+        try {
+          result = await api.createExamResult({
+            student_id: user?.id,
+            exam_id: examRes.data.exam_id,
+            session_id: sessionId,
+            answers_log: null,
+            is_submitted: false,
+            submitted_at: null,
+            duration_seconds: 0,
+          });
+        } catch (err) {
+          console.error('Lỗi khi tạo bản ghi kết quả:', err);
+        }
+        if (result && result.data && result.data.id) setExamResultId(result.data.id);
         setInitDone(true);
       } catch {
         message.error('Không thể bắt đầu làm bài hoặc tải dữ liệu');
@@ -100,8 +117,21 @@ const ThucHienBaiThi = () => {
     return () => clearInterval(timer);
   }, [timeLeft, submitting, user?.id, examId, sessionId, navigate, totalTime]);
 
-  const handleAnswer = (qid, val) => {
-    setAnswers({ ...answers, [qid]: val });
+  const handleAnswer = async (qid, val) => {
+    const newAnswers = { ...answers, [qid]: val };
+    setAnswers(newAnswers);
+    // Lưu đáp án tạm thời lên server (is_submitted: false), chỉ update bản ghi đã có
+    try {
+      await api.createExamResult({
+        student_id: user?.id,
+        exam_id: examId,
+        session_id: sessionId,
+        answers_log: newAnswers,
+        is_submitted: false,
+        submitted_at: null,
+        duration_seconds: totalTime - timeLeft,
+      });
+    } catch {}
   };
 
   const handleSubmit = async () => {
