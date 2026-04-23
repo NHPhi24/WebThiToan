@@ -1,5 +1,6 @@
 const db = require('../data/db');
 const Exam = require('../entities/exam');
+const Question = require('../entities/question');
 const { createAuditLog } = require('../data/auditLog');
 
 const getAllExams = async (req, res) => {
@@ -13,35 +14,51 @@ const getAllExams = async (req, res) => {
   }
 };
 
-const createExam = async (req, res) => {
-  const { exam_code, template_id, teacher_id } = req.body;
-
+// API: GET /exams/:id/questions
+const getQuestionsByExamId = async (req, res) => {
+  const examId = req.params.id;
   try {
     const result = await db.query(
-      `INSERT INTO exams (exam_code, template_id, teacher_id)
-       VALUES ($1, $2, $3)
-       RETURNING *`,
-      [exam_code, template_id, teacher_id],
+      `SELECT q.* , eq.order_index FROM exam_questions eq JOIN questions q ON eq.question_id = q.id WHERE eq.exam_id = $1 ORDER BY eq.order_index ASC`,
+      [examId],
     );
-
-    await createAuditLog({
-      actor_id: req.body.actor_id || req.body.teacher_id || null,
-      created_by: req.body.created_by || req.body.actor_username || null,
-      action: 'CREATE',
-      resource_type: 'exam',
-      resource_id: result.rows[0].id?.toString() || null,
-      resource_name: result.rows[0].exam_code,
-      details: { template_id, teacher_id },
-    });
-
-    res.status(201).json(Exam.fromRow(result.rows[0]));
+    const questions = result.rows.map((row) => ({ ...Question.fromRow(row), order_index: row.order_index }));
+    res.json(questions);
   } catch (error) {
-    console.error('createExam error:', error);
-    res.status(500).json({ error: 'Failed to create exam' });
+    console.error('getQuestionsByExamId error:', error);
+    res.status(500).json({ error: 'Failed to fetch questions for exam' });
+  }
+};
+
+// Xóa đề thi
+const deleteExam = async (req, res) => {
+  const { id } = req.params;
+  try {
+    // Xóa các câu hỏi liên kết với đề thi này (nếu có)
+    await db.query('DELETE FROM exam_questions WHERE exam_id = $1', [id]);
+    // Xóa đề thi
+    const result = await db.query('DELETE FROM exams WHERE id = $1 RETURNING *', [id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Exam not found' });
+    }
+    await createAuditLog({
+      actor_id: req.body.actor_id || null,
+      created_by: req.body.created_by || null,
+      action: 'DELETE',
+      resource_type: 'exam',
+      resource_id: id,
+      resource_name: result.rows[0].exam_code,
+      details: result.rows[0],
+    });
+    res.json({ message: 'Deleted successfully' });
+  } catch (error) {
+    console.error('deleteExam error:', error);
+    res.status(500).json({ error: 'Failed to delete exam' });
   }
 };
 
 module.exports = {
   getAllExams,
-  createExam,
+  getQuestionsByExamId,
+  deleteExam,
 };

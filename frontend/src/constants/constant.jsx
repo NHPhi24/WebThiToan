@@ -4,6 +4,11 @@ export const EXAM_SESSION_REGISTER_STATUS = [
   { value: 20, label: 'Phê duyệt' },
   { value: 50, label: 'Từ chối' },
 ];
+export const REGISTER_EXAM_STATUS = [
+  { value: 10, label: 'Chờ duyệt' },
+  { value: 20, label: 'Phê duyệt' },
+  { value: 50, label: 'Từ chối' },
+];
 // Trạng thái ca thi
 export const EXAM_SESSION_STATUS = [
   { value: 'READY', label: 'Sẵn sàng' },

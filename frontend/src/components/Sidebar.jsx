@@ -16,6 +16,21 @@ const Sidebar = ({ user, collapsed }) => {
       icon: <UserOutlined />,
       label: 'Trang chủ',
     },
+    ...(user?.role === 'STUDENT'
+      ? [
+          {
+            key: '/qlcathi',
+            icon: <ProfileOutlined />,
+            label: 'Quản lý ca thi',
+          },
+          { key: '/lam-bai-thi', icon: <BookOutlined />, label: 'Làm bài thi' },
+          {
+            key: '/qlketquathi',
+            icon: <BarChartOutlined />,
+            label: 'Quản lý kết quả thi',
+          },
+        ]
+      : []),
     ...(user?.role === 'TEACHER' || user?.role === 'ADMIN'
       ? [
           {
@@ -24,14 +39,14 @@ const Sidebar = ({ user, collapsed }) => {
             label: 'Quản lý ngân hàng câu hỏi',
           },
           {
-            key: '/qlcathi',
-            icon: <ProfileOutlined />,
-            label: 'Quản lý ca thi',
-          },
-          {
             key: '/qldethi',
             icon: <SolutionOutlined />,
             label: 'Quản lý đề thi',
+          },
+          {
+            key: '/qlcathi',
+            icon: <ProfileOutlined />,
+            label: 'Quản lý ca thi',
           },
           {
             key: '/qlhocsinh',

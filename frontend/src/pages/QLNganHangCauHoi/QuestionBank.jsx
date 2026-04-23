@@ -1,12 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import useModal from '../../hooks/useModal';
 import { Table, Button, Tooltip, Space, Modal, message } from 'antd';
-import {
-  EditOutlined,
-  DeleteOutlined,
-  PlusOutlined,
-  EyeOutlined,
-} from '@ant-design/icons';
+import { PlusOutlined } from '@ant-design/icons';
+import OperationColumn from '../../components/ActionIcons';
 import apiService from '../../services/api';
 import AddQuestionModal from './AddQuestionModal';
 import ImportQuestionModal from './ImportQuestionModal';
@@ -89,12 +85,12 @@ const QuestionBank = () => {
   };
 
   const columns = [
-    {
-      title: 'ID',
-      dataIndex: 'id',
-      key: 'id',
-      width: 60,
-    },
+    // {
+    //   title: 'ID',
+    //   dataIndex: 'id',
+    //   key: 'id',
+    //   width: 60,
+    // },
     {
       title: 'Nội dung',
       dataIndex: 'content',
@@ -160,8 +156,7 @@ const QuestionBank = () => {
       title: 'Ngày tạo',
       dataIndex: 'created_at',
       key: 'created_at',
-      render: (text) =>
-        new Date(text).toLocaleString('vi-VN', { hour12: false }),
+      render: (text) => new Date(text).toLocaleString('vi-VN', { hour12: false }),
     },
     {
       title: 'Hành động',
@@ -169,30 +164,11 @@ const QuestionBank = () => {
       width: 120,
       fixed: 'right',
       render: (_, record) => (
-        <Space>
-          <Tooltip title="Xem chi tiết">
-            <Button
-              type="text"
-              icon={<EyeOutlined />}
-              onClick={() => handleView(record.id)}
-            />
-          </Tooltip>
-          <Tooltip title="Sửa">
-            <Button
-              type="text"
-              icon={<EditOutlined />}
-              onClick={() => handleEdit(record.id)}
-            />
-          </Tooltip>
-          <Tooltip title="Xoá">
-            <Button
-              type="text"
-              danger
-              icon={<DeleteOutlined />}
-              onClick={() => handleDelete(record.id)}
-            />
-          </Tooltip>
-        </Space>
+        <OperationColumn
+          handleView={() => handleView(record.id)}
+          handleEdit={() => handleEdit(record.id)}
+          handleDelete={() => handleDelete(record.id)}
+        />
       ),
     },
   ];
@@ -200,19 +176,10 @@ const QuestionBank = () => {
   return (
     <div>
       <h1>Quản lý ngân hàng câu hỏi</h1>
-      <Button
-        type="primary"
-        icon={<PlusOutlined />}
-        style={{ marginBottom: 16, marginRight: 8 }}
-        onClick={() => setShowAdd(true)}
-      >
+      <Button type="primary" icon={<PlusOutlined />} style={{ marginBottom: 16, marginRight: 8 }} onClick={() => setShowAdd(true)}>
         Thêm câu hỏi
       </Button>
-      <Button
-        type="default"
-        style={{ marginBottom: 16 }}
-        onClick={importModal.open}
-      >
+      <Button type="default" style={{ marginBottom: 16 }} onClick={importModal.open}>
         Import
       </Button>
       <ImportQuestionModal
@@ -230,20 +197,8 @@ const QuestionBank = () => {
           }
         }}
       />
-      <Table
-        columns={columns}
-        dataSource={questions}
-        rowKey="id"
-        loading={loading}
-        bordered
-        scroll={{ x: 'max-content' }}
-      />
-      <AddQuestionModal
-        open={showAdd}
-        onClose={() => setShowAdd(false)}
-        onSuccess={fetchQuestions}
-        edit={false}
-      />
+      <Table columns={columns} dataSource={questions} rowKey="id" loading={loading} bordered scroll={{ x: 'max-content' }} />
+      <AddQuestionModal open={showAdd} onClose={() => setShowAdd(false)} onSuccess={fetchQuestions} edit={false} />
       <AddQuestionModal
         open={showEdit}
         onClose={() => {

@@ -34,7 +34,8 @@ const initDb = async () => {
       total_questions INTEGER DEFAULT 50,
       basic_percent INTEGER DEFAULT 70,
       advanced_percent INTEGER DEFAULT 30,
-      teacher_id INTEGER REFERENCES users(id)
+      teacher_id INTEGER REFERENCES users(id),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
     CREATE TABLE IF NOT EXISTS exams (
@@ -52,6 +53,7 @@ const initDb = async () => {
       PRIMARY KEY (exam_id, question_id)
     );
 
+
     CREATE TABLE IF NOT EXISTS exam_sessions (
       id SERIAL PRIMARY KEY,
       session_name VARCHAR(100) NOT NULL,
@@ -59,22 +61,18 @@ const initDb = async () => {
       duration INTEGER NOT NULL,
       teacher_id INTEGER REFERENCES users(id),
       status VARCHAR(20) DEFAULT 'READY',
+      manual_status_time TIMESTAMP NULL,
+      exam_ids INTEGER[] DEFAULT '{}',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
-
 
     CREATE TABLE IF NOT EXISTS session_participants (
       session_id INTEGER REFERENCES exam_sessions(id) ON DELETE CASCADE,
       user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
       registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       register_status INT DEFAULT 10, -- 10: chờ duyệt, 20: phê duyệt, 50: từ chối
+      has_joined BOOLEAN DEFAULT FALSE, -- Đã tham gia thi hay chưa (vào phòng thi lần đầu)
       PRIMARY KEY (session_id, user_id)
-    );
-
-    CREATE TABLE IF NOT EXISTS session_exams (
-      session_id INTEGER REFERENCES exam_sessions(id) ON DELETE CASCADE,
-      exam_id INTEGER REFERENCES exams(id) ON DELETE CASCADE,
-      PRIMARY KEY (session_id, exam_id)
     );
 
     CREATE TABLE IF NOT EXISTS exam_results (
@@ -86,6 +84,7 @@ const initDb = async () => {
       answers_log JSONB DEFAULT '{}',
       is_submitted BOOLEAN DEFAULT FALSE,
       submitted_at TIMESTAMP,
+      duration_seconds INTEGER DEFAULT 0, -- Thời gian làm bài (giây)
       CONSTRAINT fk_student FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE,
       CONSTRAINT fk_exam FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE,
       CONSTRAINT fk_session FOREIGN KEY (session_id) REFERENCES exam_sessions(id) ON DELETE CASCADE,
@@ -121,4 +120,25 @@ const initDb = async () => {
   `);
 };
 
-module.exports = initDb;
+// Tự động thêm cột nếu chưa có
+const addColumnIfNotExists = async (table, column, typeDefault) => {
+  const check = await db.query(`SELECT column_name FROM information_schema.columns WHERE table_name=$1 AND column_name=$2`, [table, column]);
+  if (check.rows.length === 0) {
+    await db.query(`ALTER TABLE ${table} ADD COLUMN ${column} ${typeDefault}`);
+    console.log(`Đã thêm cột ${column} vào ${table}`);
+  }
+};
+
+const migrateSessionParticipants = async () => {
+  await addColumnIfNotExists('session_participants', 'has_joined', 'BOOLEAN DEFAULT FALSE');
+};
+
+const migrateExamResults = async () => {
+  await addColumnIfNotExists('exam_results', 'duration_seconds', 'INTEGER DEFAULT 0');
+};
+
+module.exports = async () => {
+  await initDb();
+  await migrateExamResults();
+  await migrateSessionParticipants();
+};

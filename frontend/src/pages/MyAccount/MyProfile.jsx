@@ -37,8 +37,29 @@ const MyProfile = () => {
   const handleSave = async () => {
     try {
       const values = await form.validateFields();
+      let profile_info = values.profile_info;
+      // Nếu không phải JSON, thử tự động chuyển đổi từ key: value\nkey: value... sang JSON
+      let parsed = null;
+      try {
+        parsed = JSON.parse(profile_info);
+      } catch {
+        // Thử tự động chuyển đổi
+        const lines = profile_info.split(/\r?\n/).filter(Boolean);
+        const obj = {};
+        for (const line of lines) {
+          const idx = line.indexOf(':');
+          if (idx > -1) {
+            const key = line.slice(0, idx).trim();
+            const value = line.slice(idx + 1).trim();
+            obj[key] = value;
+          }
+        }
+        parsed = obj;
+        // Hiển thị lại cho user xem
+        form.setFieldsValue({ profile_info: JSON.stringify(obj, null, 2) });
+      }
       setLoading(true);
-      const res = await apiService.updateUser(user.id, values);
+      const res = await apiService.updateUser(user.id, { ...values, profile_info: parsed });
       setUser(res.data);
       message.success('Cập nhật thông tin thành công!');
     } catch (err) {
@@ -71,6 +92,9 @@ const MyProfile = () => {
         </Form.Item> */}
         <Form.Item label="Tên đăng nhập" name="username" rules={[{ required: true }]}>
           <Input disabled />
+        </Form.Item>
+        <Form.Item label="Thông tin bổ sung (JSON)" name="profile_info" tooltip="Nhập thông tin bổ sung dưới dạng JSON">
+          <Input.TextArea rows={4} placeholder='{"truong": "abc"}' />
         </Form.Item>
         <Form.Item>
           <Button type="primary" onClick={handleSave} loading={loading}>

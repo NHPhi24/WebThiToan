@@ -3,11 +3,13 @@ import { MenuFoldOutlined, MenuUnfoldOutlined, UserOutlined, LogoutOutlined, Inf
 import { Dropdown, Menu, message, Modal, Button } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import MyProfile from '../pages/MyAccount/MyProfile';
+import ChangePasswordModal from './ChangePasswordModal';
 
 const headerHeight = 56;
 
 const Header = ({ user, onToggleSidebar, sidebarCollapsed, onLogout }) => {
   const [showProfile, setShowProfile] = useState(false);
+  const [showChangePw, setShowChangePw] = useState(false);
   const navigate = useNavigate();
   const handleMenuClick = ({ key }) => {
     if (key === 'logout') {
@@ -19,7 +21,7 @@ const Header = ({ user, onToggleSidebar, sidebarCollapsed, onLogout }) => {
     } else if (key === 'info') {
       setShowProfile(true);
     } else if (key === 'changepw') {
-      message.info('Chức năng đổi mật khẩu sẽ sớm có.');
+      setShowChangePw(true);
     }
   };
 
@@ -53,7 +55,9 @@ const Header = ({ user, onToggleSidebar, sidebarCollapsed, onLogout }) => {
       >
         {sidebarCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
       </button>
-      <div style={{ fontWeight: 700, fontSize: 20, color: '#1890ff', flex: 1 }}>Web Thi Toán</div>
+      <div onClick={() => navigate('/')} style={{ fontWeight: 700, fontSize: 20, color: '#1890ff', flex: 1, cursor: 'pointer' }}>
+        Web Thi Toán
+      </div>
       {user ? (
         <Dropdown
           menu={{
@@ -106,6 +110,8 @@ const Header = ({ user, onToggleSidebar, sidebarCollapsed, onLogout }) => {
       <Modal open={showProfile} onCancel={() => setShowProfile(false)} footer={null} width={500} destroyOnClose>
         <MyProfile user={user} />
       </Modal>
+      {/* Modal Đổi mật khẩu */}
+      <ChangePasswordModal open={showChangePw} onClose={() => setShowChangePw(false)} userId={user?.id} />
     </header>
   );
 };

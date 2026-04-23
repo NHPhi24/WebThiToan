@@ -1,9 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { Table, message, Modal, Form, Input, DatePicker, InputNumber, Select, Button, Tooltip, Popconfirm } from 'antd';
+import useTeacherFullName from '../../hooks/useTeacherFullName';
+
+// Component con để dùng hook đúng chuẩn
+const TeacherName = ({ teacherId }) => {
+  const { fullName, loading } = useTeacherFullName(teacherId);
+  return loading ? '...' : fullName;
+};
 import { Edit, Trash, Eye } from 'lucide-react';
 import AddExamSessionModal from './AddExamSessionModal';
+import api from '../../services/api';
 import { PlusOutlined } from '@ant-design/icons';
 import ExamSessionDetail from './ExamSessionDetail';
+import { useEffect as useEffect2, useState as useState2 } from 'react';
 
 // Lấy user hiện tại từ localStorage
 const getCurrentUser = () => {
@@ -34,6 +43,13 @@ const QLCaThi = ({ user, isLoggedIn }) => {
   const [addModalLoading, setAddModalLoading] = useState(false);
   const [modalLoading, setModalLoading] = useState(false);
   const [form] = Form.useForm();
+  const [examOptions, setExamOptions] = useState([]);
+
+  useEffect(() => {
+    api.getAllExams().then((res) => {
+      setExamOptions((res.data || []).map((e) => ({ label: `${e.exam_code} (ID: ${e.id})`, value: e.id })));
+    });
+  }, []);
 
   // Xử lý mở modal thêm mới
   const handleAddNew = () => {
@@ -95,6 +111,7 @@ const QLCaThi = ({ user, isLoggedIn }) => {
       form.setFieldsValue({
         ...res.data,
         start_time: dayjs(res.data.start_time),
+        exam_ids: res.data.exam_ids || [],
       });
     } catch {
       message.error('Không thể tải chi tiết ca thi');
@@ -152,6 +169,20 @@ const QLCaThi = ({ user, isLoggedIn }) => {
   };
 
   const canEdit = isLoggedIn && (user?.role === 'TEACHER' || user?.role === 'ADMIN');
+  // Lấy danh sách các ca thi mà học sinh đã đăng ký
+  const [registeredSessions, setRegisteredSessions] = useState2([]);
+  useEffect2(() => {
+    const fetchRegistered = async () => {
+      if (!user || user.role !== 'STUDENT') return;
+      try {
+        const res = await api.getAllSessionParticipants();
+        // Lọc ra các ca thi mà user đã đăng ký
+        const registered = (res.data || []).filter((p) => p.user_id === user.id);
+        setRegisteredSessions(registered);
+      } catch {}
+    };
+    fetchRegistered();
+  }, [user]);
   const columns = [
     {
       title: 'Tên ca thi',
@@ -168,6 +199,11 @@ const QLCaThi = ({ user, isLoggedIn }) => {
       title: 'Thời lượng (phút)',
       dataIndex: 'duration',
       key: 'duration',
+    },
+    {
+      title: 'Giáo viên tạo',
+      dataIndex: 'teacher_id',
+      render: (teacher_id) => <TeacherName teacherId={teacher_id} />,
     },
     {
       title: 'Trạng thái',
@@ -235,53 +271,91 @@ const QLCaThi = ({ user, isLoggedIn }) => {
   return (
     <div>
       <h1>Quản lý ca thi</h1>
+      {/* Hiển thị danh sách ca thi đã đăng ký của học sinh */}
+      {user?.role === 'STUDENT' && registeredSessions.length > 0 && (
+        <div style={{ marginBottom: 24 }}>
+          <h3>Ca thi bạn đã đăng ký</h3>
+          <Table
+            columns={[
+              { title: 'Tên ca thi', dataIndex: 'session_name', key: 'session_name' },
+              {
+                title: 'Thời gian bắt đầu',
+                dataIndex: 'start_time',
+                key: 'start_time',
+                render: (text) => new Date(text).toLocaleString('vi-VN', { hour12: false }),
+              },
+              {
+                title: 'Trạng thái',
+                dataIndex: 'register_status',
+                key: 'register_status',
+                render: (status) => (status === 10 ? 'Chờ duyệt' : status === 20 ? 'Đã duyệt' : status === 50 ? 'Từ chối' : status),
+              },
+            ]}
+            dataSource={registeredSessions
+              .slice() // copy mảng
+              .sort((a, b) => new Date(b.registered_at) - new Date(a.registered_at)) // mới nhất lên đầu
+              .slice(0, 2) // lấy 2 bản ghi mới nhất
+              .map((p) => {
+                const session = data.find((s) => s.id === p.session_id) || {};
+                return {
+                  key: p.session_id,
+                  session_name: session.session_name || '(Không tìm thấy)',
+                  start_time: session.start_time,
+                  register_status: p.register_status,
+                };
+              })}
+            pagination={false}
+            size="small"
+            rowKey="key"
+          />
+        </div>
+      )}
       {canEdit && (
         <Button type="primary" onClick={handleAddNew} style={{ marginBottom: 16 }} icon={<PlusOutlined />}>
           Thêm ca thi
         </Button>
       )}
       <Table columns={columns} dataSource={data} loading={loading} rowKey="id" pagination={{ pageSize: 10 }} />
-      <Modal
-        open={modalOpen}
-        onCancel={() => setModalOpen(false)}
-        title={modalMode === 'edit' ? 'Sửa ca thi' : 'Chi tiết ca thi'}
-        onOk={modalMode === 'edit' ? handleModalOk : () => setModalOpen(false)}
-        okText={modalMode === 'edit' ? 'Lưu' : 'Đóng'}
-        cancelText="Hủy"
-        confirmLoading={modalLoading}
-        destroyOnClose
-        footer={modalMode === 'edit' ? undefined : null}
-      >
-        {modalMode === 'view' && modalData && (
-          <ExamSessionDetail data={modalData} />
-        )}
-        {modalMode === 'edit' && modalData && (
-          <Form
-            form={form}
-            layout="vertical"
-            initialValues={{
-              ...modalData,
-              start_time: dayjs(modalData.start_time),
-            }}
-          >
-            <Form.Item label="Tên ca thi" name="session_name" rules={[{ required: true, message: 'Nhập tên ca thi' }]}> 
-              <Input />
-            </Form.Item>
-            <Form.Item label="Thời gian bắt đầu" name="start_time" rules={[{ required: true, message: 'Chọn thời gian' }]}> 
-              <DatePicker showTime format="YYYY-MM-DD HH:mm" style={{ width: '100%' }} />
-            </Form.Item>
-            <Form.Item label="Thời lượng (phút)" name="duration" rules={[{ required: true, message: 'Nhập thời lượng' }]}> 
-              <InputNumber min={1} max={300} style={{ width: '100%' }} />
-            </Form.Item>
-            <Form.Item label="Trạng thái" name="status" rules={[{ required: true, message: 'Chọn trạng thái' }]}> 
-              <Select options={statusOptions} />
-            </Form.Item>
-            <Form.Item label="Giáo viên tạo" name="teacher_id" rules={[{ required: true, message: 'Nhập ID giáo viên' }]}> 
-              <Input />
-            </Form.Item>
-          </Form>
-        )}
-      </Modal>
+      {modalOpen && modalMode !== 'view' && (
+        <AddExamSessionModal
+          open={modalOpen}
+          onCancel={() => setModalOpen(false)}
+          onOk={async (values) => {
+            setModalLoading(true);
+            try {
+              await apiService.updateExamSession(modalData.id, {
+                ...values,
+                start_time: values.start_time,
+              });
+              message.success('Cập nhật thành công');
+              setModalOpen(false);
+              fetchData();
+            } catch {
+              message.error('Cập nhật thất bại');
+            } finally {
+              setModalLoading(false);
+            }
+          }}
+          loading={modalLoading}
+          user={getCurrentUser()}
+          editData={modalData}
+        />
+      )}
+      {modalOpen && modalMode === 'view' && modalData && (
+        <ExamSessionDetail
+          data={modalData}
+          registeredSessionId={(() => {
+            // Tìm ca thi READY mà học sinh đã đăng ký (chờ duyệt hoặc đã duyệt)
+            if (!user || user.role !== 'STUDENT') return null;
+            const found = registeredSessions.find(
+              (p) =>
+                p.register_status !== 50 && // không bị từ chối
+                data.find((s) => s.id === p.session_id && s.status === 'READY'),
+            );
+            return found ? found.session_id : null;
+          })()}
+        />
+      )}
 
       {canEdit && (
         <AddExamSessionModal

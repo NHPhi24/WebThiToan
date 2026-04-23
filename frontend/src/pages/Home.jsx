@@ -1,9 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import { Row, Col, Card, Typography, Statistic, List, Tag, Space, message } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import { CalculatorOutlined, FieldNumberOutlined, TrophyOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import {
+  CalculatorOutlined,
+  FieldNumberOutlined,
+  TrophyOutlined,
+  ClockCircleOutlined,
+  BookOutlined,
+  TeamOutlined,
+  SolutionOutlined,
+  BarChartOutlined,
+} from '@ant-design/icons';
 import apiService from '../services/api';
 import dayjs from 'dayjs';
+
+import RequireLoginModal from '../components/RequireLoginModal';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -20,23 +31,31 @@ const mockStats = {
 
 const Home = () => {
   const [upcomingExams, setUpcomingExams] = useState([]);
+  const [ongoingExams, setOngoingExams] = useState([]);
   const [stats, setStats] = useState(null);
+  const [loginModalOpen, setLoginModalOpen] = useState(false);
   const navigate = useNavigate();
 
   // Có thể fetch từ API thật nếu muốn
   useEffect(() => {
-    // Lấy ca thi sắp diễn ra
+    // Gọi API lấy ca thi đang diễn ra
     apiService
-      .getAllExamSessions()
+      .getOngoingExamSessions()
       .then((res) => {
-        // Lọc các ca thi có thời gian bắt đầu trong tương lai
-        const now = dayjs();
-        const upcoming = (res.data || []).filter((e) => dayjs(e.start_time).isAfter(now));
-        // Sắp xếp tăng dần theo thời gian bắt đầu
-        upcoming.sort((a, b) => dayjs(a.start_time) - dayjs(b.start_time));
-        setUpcomingExams(upcoming.slice(0, 5)); // chỉ lấy 5 ca gần nhất
+        setOngoingExams(res.data || []);
+      })
+      .catch(() => setOngoingExams([]));
+
+    // Gọi API lấy ca thi sẵn sàng (sắp diễn ra)
+    apiService
+      .getReadyExamSessions()
+      .then((res) => {
+        // Sắp xếp tăng dần theo thời gian bắt đầu, lấy 5 ca gần nhất
+        const upcoming = (res.data || []).sort((a, b) => dayjs(a.start_time) - dayjs(b.start_time));
+        setUpcomingExams(upcoming.slice(0, 5));
       })
       .catch(() => setUpcomingExams([]));
+
     setStats(mockStats);
   }, []);
 
@@ -65,8 +84,50 @@ const Home = () => {
         Hãy bắt đầu hành trình chinh phục Toán học cùng chúng tôi và nâng cao thành tích của bạn mỗi ngày!
       </Paragraph>
 
+      {/* Ca thi đang diễn ra & Thành tích */}
       <Row gutter={32} style={{ marginBottom: 32 }}>
         <Col xs={24} md={16}>
+          <Card
+            title={
+              <span>
+                <ClockCircleOutlined /> Ca thi đang diễn ra
+              </span>
+            }
+            bordered={false}
+            style={{ marginBottom: 24 }}
+          >
+            {/* ca thi đang diễn ra */}
+            <List
+              itemLayout="horizontal"
+              dataSource={ongoingExams}
+              locale={{ emptyText: 'Không có ca thi nào đang diễn ra.' }}
+              renderItem={(item) => (
+                <List.Item
+                  actions={[<Tag color="green">Đang diễn ra</Tag>]}
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => {
+                    const user = JSON.parse(localStorage.getItem('user') || 'null');
+                    if (!user || !user.id) {
+                      setLoginModalOpen(true);
+                    } else {
+                      navigate(`/qlcathi`);
+                    }
+                  }}
+                >
+                  <List.Item.Meta
+                    title={<b>{item.session_name}</b>}
+                    description={
+                      <Space>
+                        <ClockCircleOutlined /> {dayjs(item.start_time).format('YYYY-MM-DD HH:mm')}
+                        <FieldNumberOutlined /> {item.duration} phút
+                      </Space>
+                    }
+                  />
+                </List.Item>
+              )}
+            />
+          </Card>
+          {/* Ca thi sắp diễn ra */}
           <Card
             title={
               <span>
@@ -86,8 +147,7 @@ const Home = () => {
                   onClick={() => {
                     const user = JSON.parse(localStorage.getItem('user') || 'null');
                     if (!user || !user.id) {
-                      message.info('Vui lòng đăng nhập để xem chi tiết ca thi.');
-                      navigate('/dang-nhap');
+                      setLoginModalOpen(true);
                     } else {
                       navigate(`/qlcathi`);
                     }
@@ -96,12 +156,10 @@ const Home = () => {
                   <List.Item.Meta
                     title={<b>{item.session_name}</b>}
                     description={
-                      <>
-                        <Space>
-                          <ClockCircleOutlined /> {dayjs(item.start_time).format('YYYY-MM-DD HH:mm')}
-                          <FieldNumberOutlined /> {item.duration} phút
-                        </Space>
-                      </>
+                      <Space>
+                        <ClockCircleOutlined /> {dayjs(item.start_time).format('YYYY-MM-DD HH:mm')}
+                        <FieldNumberOutlined /> {item.duration} phút
+                      </Space>
                     }
                   />
                 </List.Item>
@@ -125,15 +183,100 @@ const Home = () => {
           </Card>
         </Col>
       </Row>
+
+      {/* Card chức năng - mỗi dòng 1 chức năng, mô tả rõ ràng */}
+      <Row gutter={0} style={{ margin: '32px 0 0 0', flexDirection: 'column' }}>
+        <Col xs={24} style={{ marginBottom: 24 }}>
+          <Card
+            hoverable
+            style={{ minHeight: 100, display: 'flex', alignItems: 'center' }}
+            onClick={() => {
+              const user = JSON.parse(localStorage.getItem('user') || 'null');
+              if (!user || !user.id) {
+                setLoginModalOpen(true);
+              } else {
+                navigate('/qlcauhoi');
+              }
+            }}
+          >
+            <BookOutlined style={{ fontSize: 32, color: '#1890ff', marginRight: 24 }} />
+            <div>
+              <div style={{ fontWeight: 500, fontSize: 18 }}>Ngân hàng câu hỏi</div>
+              <div style={{ color: '#888' }}>Quản lý, tìm kiếm, thêm mới và chỉnh sửa các câu hỏi trắc nghiệm dùng cho các đề thi.</div>
+            </div>
+          </Card>
+        </Col>
+        <Col xs={24} style={{ marginBottom: 24 }}>
+          <Card
+            hoverable
+            style={{ minHeight: 100, display: 'flex', alignItems: 'center' }}
+            onClick={() => {
+              const user = JSON.parse(localStorage.getItem('user') || 'null');
+              if (!user || !user.id) {
+                setLoginModalOpen(true);
+              } else {
+                navigate('/qlhocsinh');
+              }
+            }}
+          >
+            <TeamOutlined style={{ fontSize: 32, color: '#52c41a', marginRight: 24 }} />
+            <div>
+              <div style={{ fontWeight: 500, fontSize: 18 }}>Quản lý học sinh</div>
+              <div style={{ color: '#888' }}>Thêm mới, chỉnh sửa, tìm kiếm và quản lý thông tin học sinh tham gia các kỳ thi.</div>
+            </div>
+          </Card>
+        </Col>
+        <Col xs={24} style={{ marginBottom: 24 }}>
+          <Card
+            hoverable
+            style={{ minHeight: 100, display: 'flex', alignItems: 'center' }}
+            onClick={() => {
+              const user = JSON.parse(localStorage.getItem('user') || 'null');
+              if (!user || !user.id) {
+                setLoginModalOpen(true);
+              } else {
+                navigate('/qldethi');
+              }
+            }}
+          >
+            <SolutionOutlined style={{ fontSize: 32, color: '#faad14', marginRight: 24 }} />
+            <div>
+              <div style={{ fontWeight: 500, fontSize: 18 }}>Quản lý đề thi</div>
+              <div style={{ color: '#888' }}>Tạo mới, chỉnh sửa cấu trúc và quản lý các đề thi trắc nghiệm cho từng ca thi.</div>
+            </div>
+          </Card>
+        </Col>
+        <Col xs={24} style={{ marginBottom: 24 }}>
+          <Card
+            hoverable
+            style={{ minHeight: 100, display: 'flex', alignItems: 'center' }}
+            onClick={() => {
+              const user = JSON.parse(localStorage.getItem('user') || 'null');
+              if (!user || !user.id) {
+                setLoginModalOpen(true);
+              } else {
+                navigate('/qlketquathi');
+              }
+            }}
+          >
+            <BarChartOutlined style={{ fontSize: 32, color: '#eb2f96', marginRight: 24 }} />
+            <div>
+              <div style={{ fontWeight: 500, fontSize: 18 }}>Quản lý kết quả thi</div>
+              <div style={{ color: '#888' }}>Xem, thống kê, xuất báo cáo kết quả thi của học sinh theo từng ca thi, đề thi.</div>
+            </div>
+          </Card>
+        </Col>
+      </Row>
       <div style={{ marginTop: 48, padding: '32px 0 0 0', borderTop: '1px solid #f0f0f0', textAlign: 'center', color: '#888' }}>
         <div style={{ fontSize: 16, marginBottom: 8 }}>
-          <b>Liên hệ:</b> mathquiz@school.edu.vn &nbsp;|&nbsp; <b>Hotline:</b> 0123 456 789
+          <b>Liên hệ:</b> nguyenphi24032003@gmail.com &nbsp;|&nbsp; <b>Hotline:</b> 0357212084
         </div>
         <div style={{ fontSize: 15, marginBottom: 8 }}>
           <i>"Chinh phục Toán học - Mở rộng tương lai!"</i>
         </div>
-        <div style={{ fontSize: 14 }}>&copy; {new Date().getFullYear()} MathQuiz. Một sản phẩm hỗ trợ học sinh Việt Nam yêu Toán.</div>
+        <div style={{ fontSize: 14 }}>&copy; {new Date().getFullYear()} NHPhi. Một sản phẩm hỗ trợ học sinh Việt Nam yêu Toán.</div>
       </div>
+      <RequireLoginModal visible={loginModalOpen} onClose={() => setLoginModalOpen(false)} />
     </div>
   );
 };

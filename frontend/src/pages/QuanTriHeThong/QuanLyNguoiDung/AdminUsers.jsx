@@ -5,6 +5,7 @@ import { PlusOutlined } from '@ant-design/icons';
 import ActionIcons from '../../../components/ActionIcons';
 import api from '../../../services/api';
 import { ROLES } from '../../../constants/constant.jsx';
+import ImportUsers from './ImportUsers';
 
 const AdminUsers = () => {
   const [users, setUsers] = useState([]);
@@ -12,6 +13,9 @@ const AdminUsers = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [form] = Form.useForm();
+  const [viewModalVisible, setViewModalVisible] = useState(false);
+  const [viewUser, setViewUser] = useState(null);
+  const [importModalVisible, setImportModalVisible] = useState(false);
 
   // Lấy user hiện tại từ localStorage
   const getCurrentUser = () => {
@@ -103,6 +107,16 @@ const AdminUsers = () => {
     }
   };
 
+  const handleView = async (user) => {
+    try {
+      const res = await api.getUserById(user.id);
+      setViewUser(res.data);
+      setViewModalVisible(true);
+    } catch (err) {
+      message.error('Không thể tải chi tiết người dùng');
+    }
+  };
+
   const columns = [
     {
       title: 'Tên đăng nhập',
@@ -133,7 +147,9 @@ const AdminUsers = () => {
     {
       title: 'Hành động',
       key: 'actions',
-      render: (_, record) => <ActionIcons handleEdit={() => openEditModal(record)} handleDelete={() => handleDelete(record.id)} />,
+      render: (_, record) => (
+        <ActionIcons handleView={() => handleView(record)} handleEdit={() => openEditModal(record)} handleDelete={() => handleDelete(record.id)} />
+      ),
     },
   ];
 
@@ -142,16 +158,19 @@ const AdminUsers = () => {
       <Card
         title={isGiaoVien ? 'Quản lý học sinh' : 'Quản lý người dùng'}
         extra={
-          <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
-            {isGiaoVien ? 'Thêm học sinh' : 'Thêm người dùng'}
-          </Button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Button onClick={() => setImportModalVisible(true)}>Import</Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
+              {isGiaoVien ? 'Thêm học sinh' : 'Thêm người dùng'}
+            </Button>
+          </div>
         }
       >
         <Table rowKey="id" loading={loading} dataSource={users} columns={columns} pagination={{ pageSize: 8 }} />
       </Card>
 
       <Modal
-        title={editingUser ? 'Chỉnh sửa' : 'Tạo người' + (isGiaoVien ? 'học sinh' : 'người dùng')}
+        title={editingUser ? 'Chỉnh sửa' : 'Tạo mới' + (isGiaoVien ? ' học sinh' : ' người dùng')}
         open={modalVisible}
         onCancel={closeModal}
         footer={null}
@@ -226,6 +245,46 @@ const AdminUsers = () => {
           </Form.Item>
         </Form>
       </Modal>
+
+      <Modal
+        title={viewUser ? `Chi tiết người dùng: ${viewUser.full_name}` : 'Chi tiết người dùng'}
+        open={viewModalVisible}
+        onCancel={() => setViewModalVisible(false)}
+        footer={null}
+        destroyOnClose
+      >
+        {viewUser && (
+          <div>
+            <p>
+              <b>Tên đăng nhập:</b> {viewUser.username}
+            </p>
+            <p>
+              <b>Họ và tên:</b> {viewUser.full_name}
+            </p>
+            <p>
+              <b>Email:</b> {viewUser.email}
+            </p>
+            <p>
+              <b>Vai trò:</b> {viewUser.role}
+            </p>
+            <p>
+              <b>Ngày tạo:</b> {viewUser.created_at ? new Date(viewUser.created_at).toLocaleString() : '-'}
+            </p>
+            <p>
+              <b>Thông tin bổ sung:</b>
+            </p>
+            <pre style={{ background: '#f6f6f6', padding: 8, borderRadius: 4 }}>
+              {viewUser.profile_info
+                ? typeof viewUser.profile_info === 'object'
+                  ? JSON.stringify(viewUser.profile_info, null, 2)
+                  : viewUser.profile_info
+                : 'Không có'}
+            </pre>
+          </div>
+        )}
+      </Modal>
+
+      <ImportUsers visible={importModalVisible} onClose={() => setImportModalVisible(false)} onImported={fetchUsers} />
     </div>
   );
 };

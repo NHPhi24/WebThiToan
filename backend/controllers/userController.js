@@ -1,3 +1,70 @@
+// Kiểm tra trùng username và email cho import user
+const checkDuplicateUsers = async (req, res) => {
+  const users = req.body.users || [];
+  if (!Array.isArray(users) || users.length === 0) {
+    return res.status(400).json({ error: 'Danh sách users không hợp lệ' });
+  }
+
+  // Lấy tất cả username và email cần kiểm tra
+  const usernames = users.map((u) => u.username).filter(Boolean);
+  const emails = users.map((u) => u.email).filter(Boolean);
+
+  try {
+    // Truy vấn các user đã tồn tại theo username hoặc email
+    const result = await db.query(`SELECT username, email FROM users WHERE username = ANY($1) OR email = ANY($2)`, [usernames, emails]);
+    const existed = result.rows;
+
+    // Trả về danh sách user bị trùng (theo index trong mảng users)
+    const duplicates = users
+      .map((u, idx) => {
+        const usernameDup = existed.find((e) => e.username === u.username);
+        const emailDup = u.email && existed.find((e) => e.email === u.email);
+        return {
+          index: idx,
+          username: u.username,
+          email: u.email,
+          duplicateUsername: !!usernameDup,
+          duplicateEmail: !!emailDup,
+        };
+      })
+      .filter((d) => d.duplicateUsername || d.duplicateEmail);
+
+    res.json({ duplicates });
+  } catch (error) {
+    console.error('checkDuplicateUsers error:', error);
+    res.status(500).json({ error: 'Lỗi kiểm tra trùng user' });
+  }
+};
+// Đổi mật khẩu không mã hóa
+const changePassword = async (req, res) => {
+  const { id } = req.params;
+  const { newPassword } = req.body;
+  if (!newPassword) {
+    return res.status(400).json({ error: 'Missing newPassword' });
+  }
+  try {
+    const result = await db.query(
+      'UPDATE users SET password = $1 WHERE id = $2 RETURNING id, username, full_name, email, role, created_by, profile_info, created_at',
+      [newPassword, id],
+    );
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    await createAuditLog({
+      actor_id: req.body.actor_id || null,
+      created_by: req.body.created_by || req.body.actor_username || null,
+      action: 'CHANGE_PASSWORD',
+      resource_type: 'user',
+      resource_id: id.toString(),
+      resource_name: result.rows[0].username,
+      details: { changed: true },
+    });
+    res.json({ message: 'Password updated successfully' });
+  } catch (error) {
+    console.error('changePassword error:', error);
+    res.status(500).json({ error: 'Failed to change password' });
+  }
+};
 // Không export trực tiếp ở đầu file, chỉ export cuối file
 // Lấy thông tin user theo id
 const getUserById = async (req, res) => {
@@ -193,4 +260,6 @@ module.exports = {
   loginUser,
   getUserById,
   getAllStudents,
+  changePassword,
+  checkDuplicateUsers,
 };

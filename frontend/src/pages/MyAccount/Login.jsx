@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Form, Input, Button, Card, message } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import apiService from '../../services/api';
+import api from '../../services/api';
 
 const Login = ({ setIsLoggedIn, setUser }) => {
   const [loading, setLoading] = useState(false);
@@ -11,20 +11,27 @@ const Login = ({ setIsLoggedIn, setUser }) => {
   const onFinish = async (values) => {
     setLoading(true);
     try {
-      const response = await apiService.login({
+      const response = await api.login({
         username: values.username,
         password: values.password,
       });
-
-      const user = response.data;
-      setUser(user);
-      setIsLoggedIn(true);
-      localStorage.setItem('user', JSON.stringify(user));
-      message.success('Đăng nhập thành công!');
-      navigate('/'); // Về trang chủ
+      // Nếu đăng nhập thành công, BE trả về user object
+      if (response && response.data && response.data.id) {
+        const user = response.data;
+        setUser(user);
+        setIsLoggedIn(true);
+        localStorage.setItem('user', JSON.stringify(user));
+        message.success('Đăng nhập thành công!');
+        navigate('/'); // Về trang chủ
+      } else {
+        message.error('Tên đăng nhập hoặc mật khẩu không đúng');
+      }
     } catch (error) {
-      console.error('Login error:', error);
-      message.error('Tên đăng nhập hoặc mật khẩu không đúng');
+      if (error?.response?.status === 401) {
+        message.error('Tên đăng nhập hoặc mật khẩu không đúng');
+      } else {
+        message.error('Đã xảy ra lỗi khi đăng nhập');
+      }
     } finally {
       setLoading(false);
     }
@@ -35,26 +42,23 @@ const Login = ({ setIsLoggedIn, setUser }) => {
       <Card className="login-form">
         <h2 style={{ textAlign: 'center', marginBottom: 24 }}>Đăng nhập</h2>
         <Form name="login" onFinish={onFinish} autoComplete="off" size="large">
-          <Form.Item
-            name="username"
-            rules={[
-              { required: true, message: 'Vui lòng nhập tên đăng nhập!' },
-            ]}
-          >
+          <Form.Item name="username" rules={[{ required: true, message: 'Vui lòng nhập tên đăng nhập!' }]}>
             <Input prefix={<UserOutlined />} placeholder="Tên đăng nhập" />
           </Form.Item>
 
-          <Form.Item
-            name="password"
-            rules={[{ required: true, message: 'Vui lòng nhập mật khẩu!' }]}
-          >
+          <Form.Item name="password" rules={[{ required: true, message: 'Vui lòng nhập mật khẩu!' }]}>
             <Input.Password prefix={<LockOutlined />} placeholder="Mật khẩu" />
           </Form.Item>
 
           <Form.Item>
-            <Button type="primary" htmlType="submit" loading={loading} block>
-              Đăng nhập
-            </Button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <Button type="primary" htmlType="submit" loading={loading} block>
+                Đăng nhập
+              </Button>
+              <Button onClick={() => navigate(-1)} block>
+                Quay lại
+              </Button>
+            </div>
           </Form.Item>
         </Form>
       </Card>
