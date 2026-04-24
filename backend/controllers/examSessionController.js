@@ -1,3 +1,34 @@
+// API: GET /exam-sessions/ongoing/with-register-status?user_id=...
+const getOngoingExamSessionsWithRegisterStatus = async (req, res) => {
+  const user_id = req.query.user_id;
+  if (!user_id) return res.status(400).json({ error: 'Thiếu user_id' });
+  try {
+    // Lấy các ca thi đang diễn ra
+    const result = await db.query('SELECT * FROM exam_sessions ORDER BY start_time DESC');
+    const ongoingSessions = result.rows.filter((row) => getSessionStatus(row) === 'ONGOING');
+    if (ongoingSessions.length === 0) return res.json([]);
+    const sessionIds = ongoingSessions.map((s) => s.id);
+    // Lấy trạng thái đăng ký của user cho các ca thi này
+    const regRes = await db.query(`SELECT session_id, register_status FROM session_participants WHERE user_id = $1 AND session_id = ANY($2)`, [
+      user_id,
+      sessionIds,
+    ]);
+    const regMap = {};
+    regRes.rows.forEach((r) => {
+      regMap[r.session_id] = r.register_status;
+    });
+    // Gắn trạng thái đăng ký vào từng ca thi
+    const resultList = ongoingSessions.map((s) => {
+      const session = ExamSession.fromRow(s);
+      session.register_status = regMap[s.id] ?? null; // null nếu chưa đăng ký
+      return session;
+    });
+    res.json(resultList);
+  } catch (error) {
+    console.error('getOngoingExamSessionsWithRegisterStatus error:', error);
+    res.status(500).json({ error: 'Failed to fetch ongoing exam sessions with register status' });
+  }
+};
 // API: POST /exam-sessions/:id/start
 // Random 1 mã đề từ exam_ids, trả về mã đề và danh sách câu hỏi cho học sinh
 const db = require('../data/db');
@@ -295,4 +326,5 @@ module.exports = {
   getReadyExamSessions,
   getOngoingApprovedExamSessionsByUser,
   startExamSessionForStudent,
+  getOngoingExamSessionsWithRegisterStatus,
 };

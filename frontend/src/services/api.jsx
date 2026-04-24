@@ -50,6 +50,8 @@ const api = {
   // Lấy danh sách user đã đăng ký của 1 ca thi
   getUsersBySession: (session_id) => axiosClient.get(`/session-participants/${session_id}/users`),
   registerSessionParticipant: ({ session_id, user_id }) => axiosClient.post('/session-participants/register', { session_id, user_id }),
+  // Ca thi đang diễn ra kèm trạng thái đăng ký của user
+  getOngoingExamSessionsWithRegisterStatus: (user_id) => axiosClient.get(`/exam-sessions/ongoing/with-register-status?user_id=${user_id}`),
   // Nộp bài (manual submit)
   createExamResult: (data) => axiosClient.post('/exam-results', data),
   // Nộp tự động bài thi (auto submit)

@@ -10,6 +10,8 @@ router.post('/', examSessionController.createExamSession);
 router.get('/ongoing', examSessionController.getOngoingExamSessions);
 // API: GET /exam-sessions/ongoing/approved?user_id=...
 router.get('/ongoing/approved', examSessionController.getOngoingApprovedExamSessionsByUser);
+// API: GET /exam-sessions/ongoing/with-register-status?user_id=...
+router.get('/ongoing/with-register-status', examSessionController.getOngoingExamSessionsWithRegisterStatus);
 // Ca thi sẵn sàng (chưa bắt đầu)
 router.get('/ready', examSessionController.getReadyExamSessions);
 

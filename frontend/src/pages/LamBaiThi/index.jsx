@@ -28,7 +28,8 @@ const LamBaiThi = () => {
       return;
     }
     try {
-      const res = await api.getOngoingApprovedExamSessions(user.id);
+      // Sử dụng API mới để lấy trạng thái đăng ký
+      const res = await api.getOngoingExamSessionsWithRegisterStatus(user.id);
       setSessions(res.data);
     } catch (error) {
       message.error('Không thể tải danh sách ca thi');
@@ -60,7 +61,7 @@ const LamBaiThi = () => {
                 <Button
                   type="primary"
                   onClick={() => navigate(`/lam-bai-thi/${session.id}?exam_id=${session.exam_ids?.[0]}`)}
-                  disabled={!session.exam_ids || session.exam_ids.length === 0}
+                  disabled={!session.exam_ids || session.exam_ids.length === 0 || session.register_status !== 20}
                 >
                   Bắt đầu thi
                 </Button>,

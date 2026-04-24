@@ -18,7 +18,6 @@ const getCurrentUser = () => {
   }
 };
 
-
 const ExamSessionDetail = ({ data, onViewResult, canEdit, onStatusChange, registeredSessionId }) => {
   const navigate = useNavigate();
   const { fullName: teacherName } = useTeacherFullName(data?.teacher_id);
@@ -69,7 +68,7 @@ const ExamSessionDetail = ({ data, onViewResult, canEdit, onStatusChange, regist
         </Button>
       )}
       {data.status === 'ONGOING' && currentUser?.role !== 'TEACHER' && (
-        <Button type="primary" style={{ marginTop: 16, marginLeft: 8 }} onClick={() => navigate(`/lam-bai-thi/${data.id}`)}>
+        <Button type="primary" style={{ marginTop: 16, marginLeft: 8 }} onClick={() => navigate(`/lam-bai-thi`)}>
           Đến làm bài thi
         </Button>
       )}
