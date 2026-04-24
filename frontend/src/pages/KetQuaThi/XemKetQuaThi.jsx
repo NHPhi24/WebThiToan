@@ -84,7 +84,8 @@ const columns = [
     title: 'Lời giải',
     dataIndex: 'explanation',
     key: 'explanation',
-    render: (val) => (val ? <MathText>{val}</MathText> : <span style={{ color: 'gray' }}>--</span>),
+    render: (val) =>
+      val && val.trim() !== '' && val !== null ? <MathText>{val}</MathText> : <span style={{ color: 'gray' }}>Chưa có lời giải</span>,
   },
 ];
 
@@ -248,16 +249,27 @@ export default function XemKetQuaThi() {
                   style={{ fontSize: 14, color: '#1976d2' }}
                   onClick={(e) => {
                     e.preventDefault();
-                    setShowExplanation((prev) => ({ ...prev, [row.question_id]: !prev[row.question_id] }));
+                    // Nếu showAll đang bật, cho phép ẩn riêng từng lời giải bằng showExplanation
+                    setShowExplanation((prev) => ({
+                      ...prev,
+                      [row.question_id]: showAll ? !prev[row.question_id] : !prev[row.question_id],
+                    }));
                   }}
                 >
-                  {showExplanation[row.question_id] ? 'Ẩn lời giải' : 'Giải thích chi tiết đáp án'}
+                  {showAll && showExplanation[row.question_id] === false
+                    ? 'Hiện lời giải'
+                    : showExplanation[row.question_id] || showAll
+                      ? 'Ẩn lời giải'
+                      : 'Giải thích chi tiết đáp án'}
                 </a>
-                {(showExplanation[row.question_id] || showAll) && row.explanation && (
-                  <div style={{ marginTop: 8, background: '#f6f8fa', padding: 12, borderRadius: 4 }}>
-                    <MathText>{row.explanation}</MathText>
-                  </div>
-                )}
+                {((showAll && showExplanation[row.question_id] !== false) || (!showAll && showExplanation[row.question_id])) &&
+                  (row.explanation && row.explanation.trim() !== '' ? (
+                    <div style={{ marginTop: 8, background: '#f6f8fa', padding: 12, borderRadius: 4 }}>
+                      <MathText>{row.explanation}</MathText>
+                    </div>
+                  ) : (
+                    <div style={{ marginTop: 8, background: '#f6f8fa', padding: 12, borderRadius: 4, color: 'gray' }}>Chưa có lời giải</div>
+                  ))}
               </div>
             </div>
           ))}
