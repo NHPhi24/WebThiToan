@@ -161,7 +161,7 @@ const getSessionStatus = (row) => {
 
 const getAllExamSessions = async (req, res) => {
   try {
-    const result = await db.query('SELECT * FROM exam_sessions ORDER BY start_time DESC');
+    const result = await db.query('SELECT * FROM exam_sessions ORDER BY created_at DESC');
     const sessions = result.rows.map((row) => {
       const session = ExamSession.fromRow(row);
       session.status = getSessionStatus(row);

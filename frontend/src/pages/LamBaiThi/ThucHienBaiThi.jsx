@@ -49,29 +49,52 @@ const ThucHienBaiThi = () => {
         if (user?.id && sessionId) {
           await participantApi.markJoined({ session_id: sessionId, user_id: user.id });
         }
-        // Gọi BE random mã đề và lấy câu hỏi
-        const examRes = await api.startExamSession(sessionId);
-        setExamId(examRes.data.exam_id);
-        setExamCode(examRes.data.exam_code);
-        setQuestions(examRes.data.questions || []);
-        setAnswers({});
-        setCurrent(0);
-        // Tạo trước bản ghi kết quả với is_submitted=false (nếu chưa có)
-        let result;
+        // Kiểm tra đã có exam_result cho session_id này chưa
+        let existedResult = null;
         try {
-          result = await api.createExamResult({
-            student_id: user?.id,
-            exam_id: examRes.data.exam_id,
-            session_id: sessionId,
-            answers_log: null,
-            is_submitted: false,
-            submitted_at: null,
-            duration_seconds: 0,
-          });
+          const existed = await api.getExamResultsByStudent(user?.id);
+          existedResult = (existed.data || []).find((r) => r.session_id === Number(sessionId));
         } catch (err) {
-          console.error('Lỗi khi tạo bản ghi kết quả:', err);
+          console.error('Lỗi khi kiểm tra bản ghi kết quả:', err);
         }
-        if (result && result.data && result.data.id) setExamResultId(result.data.id);
+        if (existedResult) {
+          // Đã có: dùng lại exam_id, exam_result_id, lấy lại câu hỏi theo exam_id cũ
+          setExamId(existedResult.exam_id);
+          setExamResultId(existedResult.id);
+          // Lấy lại câu hỏi theo exam_id cũ
+          try {
+            const examQuestions = await api.getQuestionsByExamId(existedResult.exam_id);
+            setQuestions(examQuestions.data || []);
+          } catch {
+            setQuestions([]);
+          }
+          setAnswers(existedResult.answers_log || {});
+          setCurrent(0);
+          setExamCode(''); // Nếu muốn lấy lại mã đề, cần thêm api lấy exam_code theo exam_id
+        } else {
+          // Chưa có: random mã đề mới và tạo bản ghi mới
+          const examRes = await api.startExamSession(sessionId);
+          setExamId(examRes.data.exam_id);
+          setExamCode(examRes.data.exam_code);
+          setQuestions(examRes.data.questions || []);
+          setAnswers({});
+          setCurrent(0);
+          let result;
+          try {
+            result = await api.createExamResult({
+              student_id: Number(user?.id),
+              exam_id: Number(examRes.data.exam_id),
+              session_id: Number(sessionId),
+              answers_log: null,
+              is_submitted: false,
+              submitted_at: null,
+              duration_seconds: 0,
+            });
+            if (result && result.data && result.data.id) setExamResultId(result.data.id);
+          } catch (err) {
+            console.error('Lỗi khi tạo bản ghi kết quả:', err);
+          }
+        }
         setInitDone(true);
       } catch {
         message.error('Không thể bắt đầu làm bài hoặc tải dữ liệu');
@@ -122,6 +145,7 @@ const ThucHienBaiThi = () => {
     setAnswers(newAnswers);
     // Lưu đáp án tạm thời lên server (is_submitted: false), chỉ update bản ghi đã có
     try {
+      // Luôn update, không tạo mới
       await api.createExamResult({
         student_id: user?.id,
         exam_id: examId,
@@ -139,6 +163,7 @@ const ThucHienBaiThi = () => {
     setSubmitting(true);
     try {
       const duration_seconds = totalTime - timeLeft;
+      // Luôn update, không tạo mới
       await api.createExamResult({
         student_id: user?.id,
         exam_id: examId,

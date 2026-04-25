@@ -1,16 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { Row, Col, Card, Typography, Statistic, List, Tag, Space, message } from 'antd';
+import { Row, Col, Card, Typography, List, Tag, Space, message } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import {
-  CalculatorOutlined,
   FieldNumberOutlined,
-  TrophyOutlined,
   ClockCircleOutlined,
   BookOutlined,
   TeamOutlined,
   SolutionOutlined,
   BarChartOutlined,
 } from '@ant-design/icons';
+import ScorePieChart from '../components/ScorePieChart';
 import apiService from '../services/api';
 import dayjs from 'dayjs';
 
@@ -32,7 +31,7 @@ const mockStats = {
 const Home = () => {
   const [upcomingExams, setUpcomingExams] = useState([]);
   const [ongoingExams, setOngoingExams] = useState([]);
-  const [stats, setStats] = useState(null);
+  const [scoreChartData, setScoreChartData] = useState([]);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -56,7 +55,29 @@ const Home = () => {
       })
       .catch(() => setUpcomingExams([]));
 
-    setStats(mockStats);
+    // Lấy user từ localStorage
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    if (!user || !user.id) {
+      setScoreChartData([]);
+    } else {
+      // Lấy bảng điểm cá nhân
+      apiService.getExamResultsByStudent(user.id).then((res) => {
+        const results = res.data || [];
+        // Gom nhóm điểm thành các khoảng: 0-2, 2-4, 4-6, 6-8, 8-10
+        const ranges = [
+          { range: '0-2', min: 0, max: 2 },
+          { range: '2-4', min: 2, max: 4 },
+          { range: '4-6', min: 4, max: 6 },
+          { range: '6-8', min: 6, max: 8 },
+          { range: '8-10', min: 8, max: 10.0001 },
+        ];
+        const chartData = ranges.map((r) => ({
+          range: r.range,
+          count: results.filter((rs) => rs.score >= r.min && rs.score < r.max).length,
+        }));
+        setScoreChartData(chartData);
+      }).catch(() => setScoreChartData([]));
+    }
   }, []);
 
   return (
@@ -169,17 +190,17 @@ const Home = () => {
         </Col>
         <Col xs={24} md={8}>
           <Card
-            title={
-              <span>
-                <TrophyOutlined /> Thành tích của bạn
-              </span>
-            }
+            title={<span><BarChartOutlined /> Biểu đồ tỷ lệ điểm thi</span>}
             bordered={false}
+            style={{ minHeight: 340 }}
           >
-            <Statistic title="Số lần thi" value={stats?.totalExams || 0} prefix={<CalculatorOutlined />} />
-            <Statistic title="Điểm cao nhất" value={stats?.bestScore || 0} suffix="/ 10" style={{ marginTop: 16 }} />
-            <Statistic title="Điểm trung bình" value={stats?.avgScore || 0} suffix="/ 10" style={{ marginTop: 16 }} />
-            <Statistic title="Tổng số câu đã làm" value={stats?.totalQuestions || 0} style={{ marginTop: 16 }} />
+            {scoreChartData.length > 0 ? (
+              <ScorePieChart data={scoreChartData} />
+            ) : (
+              <div style={{ textAlign: 'center', color: '#888', marginTop: 40 }}>
+                Hãy đăng nhập và làm bài để xem biểu đồ tỷ lệ điểm thi của bạn!
+              </div>
+            )}
           </Card>
         </Col>
       </Row>
@@ -202,7 +223,7 @@ const Home = () => {
             <BookOutlined style={{ fontSize: 32, color: '#1890ff', marginRight: 24 }} />
             <div>
               <div style={{ fontWeight: 500, fontSize: 18 }}>Ngân hàng câu hỏi</div>
-              <div style={{ color: '#888' }}>Quản lý, tìm kiếm, thêm mới và chỉnh sửa các câu hỏi trắc nghiệm dùng cho các đề thi.</div>
+              <div style={{ color: '#888' }}>Quản lý, thêm mới và chỉnh sửa các câu hỏi trắc nghiệm dùng cho các đề thi.</div>
             </div>
           </Card>
         </Col>
@@ -222,7 +243,7 @@ const Home = () => {
             <TeamOutlined style={{ fontSize: 32, color: '#52c41a', marginRight: 24 }} />
             <div>
               <div style={{ fontWeight: 500, fontSize: 18 }}>Quản lý học sinh</div>
-              <div style={{ color: '#888' }}>Thêm mới, chỉnh sửa, tìm kiếm và quản lý thông tin học sinh tham gia các kỳ thi.</div>
+              <div style={{ color: '#888' }}>Thêm mới, chỉnh sửa và quản lý thông tin học sinh tham gia các kỳ thi.</div>
             </div>
           </Card>
         </Col>

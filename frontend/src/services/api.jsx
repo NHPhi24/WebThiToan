@@ -53,10 +53,23 @@ const api = {
   // Ca thi đang diễn ra kèm trạng thái đăng ký của user
   getOngoingExamSessionsWithRegisterStatus: (user_id) => axiosClient.get(`/exam-sessions/ongoing/with-register-status?user_id=${user_id}`),
   // Nộp bài (manual submit)
-  createExamResult: (data) => axiosClient.post('/exam-results', data),
+  createExamResult: (data) => {
+    // Ép kiểu số cho các id để tránh lỗi duplicate key
+    return axiosClient.post('/exam-results', {
+      ...data,
+      student_id: Number(data.student_id),
+      exam_id: Number(data.exam_id),
+      session_id: Number(data.session_id),
+    });
+  },
   // Nộp tự động bài thi (auto submit)
   autoSubmitExamResult: ({ student_id, exam_id, session_id, duration_seconds }) =>
-    axiosClient.post('/exam-results/auto-submit', { student_id, exam_id, session_id, duration_seconds }),
+    axiosClient.post('/exam-results/auto-submit', {
+      student_id: Number(student_id),
+      exam_id: Number(exam_id),
+      session_id: Number(session_id),
+      duration_seconds,
+    }),
   // Ca thi đang diễn ra mà học sinh đã được phê duyệt
   getOngoingApprovedExamSessions: (user_id) => axiosClient.get(`/exam-sessions/ongoing/approved?user_id=${user_id}`),
   // Kết quả thi

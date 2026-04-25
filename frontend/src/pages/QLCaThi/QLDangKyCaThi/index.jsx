@@ -115,7 +115,6 @@ const QLDangKyCaThi = () => {
   const [editUser, setEditUser] = useState(null);
   const [viewUser, setViewUser] = useState(null);
   const columns = [
-    { title: 'ID User', dataIndex: 'user_id', key: 'user_id' },
     { title: 'Tên người đăng ký', dataIndex: 'full_name', key: 'full_name' },
     { title: 'Email', dataIndex: 'email', key: 'email' },
     {

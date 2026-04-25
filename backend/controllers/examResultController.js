@@ -46,6 +46,10 @@ const getExamResultDetail = async (req, res) => {
     const details = questions.map((q, idx) => {
       const userAnsObj = Array.isArray(answersLog) ? answersLog.find((a) => a.question_id === q.id) : null;
       const your_answer = userAnsObj ? userAnsObj.answer : null;
+      let is_correct = false;
+      if (typeof your_answer === 'string' && your_answer.trim() !== '') {
+        is_correct = your_answer.toUpperCase() === q.correct_ans.toUpperCase();
+      }
       return {
         question_id: q.id,
         question_content: q.content,
@@ -55,7 +59,7 @@ const getExamResultDetail = async (req, res) => {
         ans_d: q.ans_d,
         your_answer,
         correct_answer: q.correct_ans,
-        is_correct: your_answer && your_answer.toUpperCase() === q.correct_ans.toUpperCase(),
+        is_correct,
         explanation: q.explanation,
       };
     });
@@ -89,7 +93,11 @@ const getAllExamResults = async (req, res) => {
 };
 
 const createExamResult = async (req, res) => {
-  const { student_id, exam_id, session_id, answers_log, is_submitted, submitted_at, duration_seconds } = req.body;
+  let { student_id, exam_id, session_id, answers_log, is_submitted, submitted_at, duration_seconds } = req.body;
+  // Ép kiểu về số để tránh lỗi so khớp
+  student_id = Number(student_id);
+  exam_id = Number(exam_id);
+  session_id = Number(session_id);
   try {
     // 1. Lấy danh sách câu hỏi của đề thi (theo đúng thứ tự)
     const questionsRes = await db.query(
@@ -106,32 +114,45 @@ const createExamResult = async (req, res) => {
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
       const userAns = orderedAnswers[i].answer;
-      if (userAns && userAns.toUpperCase() === q.correct_ans.toUpperCase()) correct++;
+      if (typeof userAns === 'string' && userAns.toUpperCase() === q.correct_ans.toUpperCase()) correct++;
     }
     // 4. Tính điểm (thang điểm 10, làm tròn 2 số thập phân)
     const score = total > 0 ? Math.round((correct / total) * 10 * 100) / 100 : 0;
 
-    // 5. Kiểm tra đã có kết quả chưa
-    const existed = await db.query(`SELECT * FROM exam_results WHERE student_id=$1 AND exam_id=$2 AND session_id=$3`, [
-      student_id,
-      exam_id,
-      session_id,
-    ]);
+    // 5. Kiểm tra đã có kết quả chưa (theo đúng constraint session_id, student_id)
+    const existed = await db.query(`SELECT * FROM exam_results WHERE student_id=$1 AND session_id=$2`, [student_id, session_id]);
     let result;
     if (existed.rows.length > 0) {
-      // Đã có: update lại answers_log, score, is_submitted, submitted_at, duration_seconds
+      // Đã có: update lại exam_id, answers_log, score, is_submitted, submitted_at, duration_seconds
       result = await db.query(
-        `UPDATE exam_results SET score=$1, answers_log=$2, is_submitted=$3, submitted_at=$4, duration_seconds=$5 WHERE id=$6 RETURNING *`,
-        [score, JSON.stringify(orderedAnswers), is_submitted || false, submitted_at, duration_seconds || 0, existed.rows[0].id],
+        `UPDATE exam_results SET exam_id=$1, score=$2, answers_log=$3, is_submitted=$4, submitted_at=$5, duration_seconds=$6 WHERE id=$7 RETURNING *`,
+        [exam_id, score, JSON.stringify(orderedAnswers), is_submitted || false, submitted_at, duration_seconds || 0, existed.rows[0].id],
       );
     } else {
       // Chưa có: insert mới
-      result = await db.query(
-        `INSERT INTO exam_results (student_id, exam_id, session_id, score, answers_log, is_submitted, submitted_at, duration_seconds)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-         RETURNING *`,
-        [student_id, exam_id, session_id, score, JSON.stringify(orderedAnswers), is_submitted || false, submitted_at, duration_seconds || 0],
-      );
+      try {
+        result = await db.query(
+          `INSERT INTO exam_results (student_id, exam_id, session_id, score, answers_log, is_submitted, submitted_at, duration_seconds)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+           RETURNING *`,
+          [student_id, exam_id, session_id, score, JSON.stringify(orderedAnswers), is_submitted || false, submitted_at, duration_seconds || 0],
+        );
+      } catch (insertErr) {
+        // Nếu lỗi duplicate key thì chuyển sang update
+        if (insertErr.code === '23505') {
+          const existed2 = await db.query(`SELECT * FROM exam_results WHERE student_id=$1 AND session_id=$2`, [student_id, session_id]);
+          if (existed2.rows.length > 0) {
+            result = await db.query(
+              `UPDATE exam_results SET exam_id=$1, score=$2, answers_log=$3, is_submitted=$4, submitted_at=$5, duration_seconds=$6 WHERE id=$7 RETURNING *`,
+              [exam_id, score, JSON.stringify(orderedAnswers), is_submitted || false, submitted_at, duration_seconds || 0, existed2.rows[0].id],
+            );
+          } else {
+            throw insertErr;
+          }
+        } else {
+          throw insertErr;
+        }
+      }
     }
     await createAuditLog({
       actor_id: req.body.actor_id || req.body.student_id || null,
@@ -145,7 +166,7 @@ const createExamResult = async (req, res) => {
     res.status(201).json(ExamResult.fromRow(result.rows[0]));
   } catch (error) {
     console.error('createExamResult error:', error);
-    res.status(500).json({ error: 'Failed to create exam result' });
+    res.status(500).json({ error: 'Failed to create or update exam result' });
   }
 };
 

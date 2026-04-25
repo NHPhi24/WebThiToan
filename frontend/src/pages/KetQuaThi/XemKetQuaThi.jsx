@@ -223,7 +223,19 @@ export default function XemKetQuaThi() {
               </div>
               <div style={{ marginLeft: 32, marginBottom: 8 }}>
                 <span>
-                  Đáp án của bạn: <b style={{ color: row.your_answer === row.correct_answer ? 'green' : 'red' }}>{row.your_answer || 'Chưa chọn'}</b>
+                  Đáp án của bạn:{' '}
+                  <b
+                    style={{
+                      color:
+                        typeof row.your_answer === 'string' &&
+                        row.your_answer.trim() !== '' &&
+                        row.your_answer.toUpperCase() === row.correct_answer.toUpperCase()
+                          ? 'green'
+                          : 'red',
+                    }}
+                  >
+                    {row.your_answer || 'Chưa chọn'}
+                  </b>
                 </span>
                 &nbsp;|&nbsp;
                 <span>
@@ -232,8 +244,8 @@ export default function XemKetQuaThi() {
                 &nbsp;|&nbsp;
                 <span>
                   Kết quả:{' '}
-                  {row.your_answer ? (
-                    row.is_correct ? (
+                  {typeof row.your_answer === 'string' && row.your_answer.trim() !== '' ? (
+                    row.your_answer.toUpperCase() === row.correct_answer.toUpperCase() ? (
                       <span style={{ color: 'green' }}>Đúng</span>
                     ) : (
                       <span style={{ color: 'red' }}>Sai</span>
