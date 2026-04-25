@@ -18,9 +18,11 @@ const getCurrentUser = () => {
   }
 };
 
-const ExamSessionDetail = ({ data, onViewResult, canEdit, onStatusChange, registeredSessionId }) => {
+const ExamSessionDetail = ({ data, onViewResult, canEdit, onStatusChange, registeredSessionId, teacherName: teacherNameProp }) => {
   const navigate = useNavigate();
-  const { fullName: teacherName } = useTeacherFullName(data?.teacher_id);
+  // Ưu tiên nhận tên GV từ props, nếu không có thì fallback sang hook
+  const { fullName: teacherNameHook } = useTeacherFullName(data?.teacher_id);
+  const teacherName = teacherNameProp || teacherNameHook;
   const currentUser = getCurrentUser();
   if (!data) return null;
 

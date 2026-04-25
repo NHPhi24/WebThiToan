@@ -33,6 +33,7 @@ const ThucHienBaiThi = () => {
   const [answers, setAnswers] = useState({});
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [autoSubmitted, setAutoSubmitted] = useState(false);
   const [timeLeft, setTimeLeft] = useState(3600); // 60 phút mặc định
   const [totalTime, setTotalTime] = useState(3600);
   const [examResultId, setExamResultId] = useState(null); // Lưu id bài thi
@@ -119,8 +120,9 @@ const ThucHienBaiThi = () => {
   useEffect(() => {
     if (timeLeft <= 0) {
       // Nếu chưa nộp chủ động thì gọi nộp tự động
-      if (!submitting) {
+      if (!submitting && !autoSubmitted) {
         setSubmitting(true);
+        setAutoSubmitted(true);
         const duration_seconds = totalTime;
         api
           .autoSubmitExamResult({ student_id: user?.id, exam_id: examId, session_id: sessionId, duration_seconds })
@@ -138,7 +140,7 @@ const ThucHienBaiThi = () => {
     }
     const timer = setInterval(() => setTimeLeft((t) => (t > 0 ? t - 1 : 0)), 1000);
     return () => clearInterval(timer);
-  }, [timeLeft, submitting, user?.id, examId, sessionId, navigate, totalTime]);
+  }, [timeLeft, submitting, autoSubmitted, user?.id, examId, sessionId, navigate, totalTime]);
 
   const handleAnswer = async (qid, val) => {
     const newAnswers = { ...answers, [qid]: val };

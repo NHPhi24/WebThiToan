@@ -26,11 +26,6 @@ const QLDangKyCaThi = () => {
   const [addStudentModalOpen, setAddStudentModalOpen] = useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    fetchData();
-    fetchSessionName();
-  }, [sessionId]);
-
   const fetchSessionName = async () => {
     try {
       const res = await api.getExamSessionById(sessionId);
@@ -52,6 +47,11 @@ const QLDangKyCaThi = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchData();
+    fetchSessionName();
+  }, [sessionId]);
 
   const getStatusLabel = (value) => {
     const found = EXAM_SESSION_REGISTER_STATUS.find((s) => s.value === value);

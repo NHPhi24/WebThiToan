@@ -62,7 +62,6 @@ const CauTrucDeThiModal = ({ open, onClose, onSuccess, editRecord }) => {
       setLoading(false);
     }
   };
-  console.log('usser', user?.id);
   const handleCancel = () => {
     form.resetFields();
     onClose();

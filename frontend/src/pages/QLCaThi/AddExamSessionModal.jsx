@@ -20,9 +20,11 @@ const AddExamSessionModal = ({ open, onCancel, onOk, loading, user, editData }) 
 
   React.useEffect(() => {
     if (open) {
-      api.getAllExams().then((res) => {
-        setExamOptions((res.data || []).map((e) => ({ label: `${e.exam_code} (ID: ${e.id})`, value: e.id })));
-      });
+      if (examOptions.length === 0) {
+        api.getAllExams().then((res) => {
+          setExamOptions((res.data || []).map((e) => ({ label: `${e.exam_code} (ID: ${e.id})`, value: e.id })));
+        });
+      }
       if (isEdit && editData) {
         form.setFieldsValue({
           ...editData,
@@ -37,7 +39,7 @@ const AddExamSessionModal = ({ open, onCancel, onOk, loading, user, editData }) 
         });
       }
     }
-  }, [open, user, form, isEdit, editData]);
+  }, [open, user, form, isEdit, editData, examOptions.length]);
 
   const handleOk = async () => {
     try {

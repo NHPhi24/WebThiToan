@@ -12,7 +12,6 @@ import AddExamSessionModal from './AddExamSessionModal';
 import api from '../../services/api';
 import { PlusOutlined } from '@ant-design/icons';
 import ExamSessionDetail from './ExamSessionDetail';
-import { useEffect as useEffect2, useState as useState2 } from 'react';
 
 // Lấy user hiện tại từ localStorage
 const getCurrentUser = () => {
@@ -170,8 +169,8 @@ const QLCaThi = ({ user, isLoggedIn }) => {
 
   const canEdit = isLoggedIn && (user?.role === 'TEACHER' || user?.role === 'ADMIN');
   // Lấy danh sách các ca thi mà học sinh đã đăng ký
-  const [registeredSessions, setRegisteredSessions] = useState2([]);
-  useEffect2(() => {
+  const [registeredSessions, setRegisteredSessions] = useState([]);
+  useEffect(() => {
     const fetchRegistered = async () => {
       if (!user || user.role !== 'STUDENT') return;
       try {
@@ -182,7 +181,7 @@ const QLCaThi = ({ user, isLoggedIn }) => {
       } catch {}
     };
     fetchRegistered();
-  }, [user]);
+  }, []);
   const columns = [
     {
       title: 'Tên ca thi',
