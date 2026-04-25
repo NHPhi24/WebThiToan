@@ -1,15 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Row, Col, Card, Typography, List, Tag, Space, message } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import {
-  FieldNumberOutlined,
-  ClockCircleOutlined,
-  BookOutlined,
-  TeamOutlined,
-  SolutionOutlined,
-  BarChartOutlined,
-} from '@ant-design/icons';
-import ScorePieChart from '../components/ScorePieChart';
+import { FieldNumberOutlined, ClockCircleOutlined, BookOutlined, TeamOutlined, SolutionOutlined, BarChartOutlined } from '@ant-design/icons';
+import ScoreBarChart from '../components/ScoreBarChart';
 import apiService from '../services/api';
 import dayjs from 'dayjs';
 
@@ -55,29 +48,39 @@ const Home = () => {
       })
       .catch(() => setUpcomingExams([]));
 
-    // Lấy user từ localStorage
-    const user = JSON.parse(localStorage.getItem('user') || 'null');
-    if (!user || !user.id) {
-      setScoreChartData([]);
-    } else {
-      // Lấy bảng điểm cá nhân
-      apiService.getExamResultsByStudent(user.id).then((res) => {
-        const results = res.data || [];
-        // Gom nhóm điểm thành các khoảng: 0-2, 2-4, 4-6, 6-8, 8-10
-        const ranges = [
-          { range: '0-2', min: 0, max: 2 },
-          { range: '2-4', min: 2, max: 4 },
-          { range: '4-6', min: 4, max: 6 },
-          { range: '6-8', min: 6, max: 8 },
-          { range: '8-10', min: 8, max: 10.0001 },
-        ];
-        const chartData = ranges.map((r) => ({
-          range: r.range,
-          count: results.filter((rs) => rs.score >= r.min && rs.score < r.max).length,
+    // Lấy toàn bộ kết quả thi để tính điểm trung bình từng ca thi cho tất cả vai trò
+    Promise.all([apiService.getAllExamResults(), apiService.getAllExamSessions()])
+      .then(([resResults, resSessions]) => {
+        const results = resResults.data || [];
+        const sessions = resSessions.data || [];
+        const sessionNameMap = {};
+        sessions.forEach((s) => {
+          sessionNameMap[s.id] = s.session_name;
+        });
+        // Gom nhóm theo ca thi, tính điểm trung bình từng ca
+        const sessionMap = {};
+        results.forEach((r) => {
+          const name = sessionNameMap[r.session_id] || r.session_name || `Ca ${r.session_id}`;
+          if (!sessionMap[r.session_id]) sessionMap[r.session_id] = { session_name: name, scores: [] };
+          sessionMap[r.session_id].scores.push(r.score);
+        });
+        const chartData = Object.values(sessionMap).map((s) => ({
+          session_name: s.session_name,
+          avg_score: s.scores.length > 0 ? Math.round((s.scores.reduce((a, b) => a + b, 0) / s.scores.length) * 100) / 100 : 0,
         }));
-        setScoreChartData(chartData);
-      }).catch(() => setScoreChartData([]));
-    }
+        // Chỉ lấy 5 ca thi mới nhất (theo thứ tự thời gian ca thi, không phải id)
+        // Lấy danh sách ca thi có trong chartData, sort theo start_time từ sessions
+        const sessionOrder = sessions
+          .filter((s) => chartData.some((c) => c.session_name === s.session_name))
+          .sort((a, b) => new Date(b.start_time) - new Date(a.start_time))
+          .map((s) => s.session_name);
+        const chartDataSorted = sessionOrder
+          .map((name) => chartData.find((c) => c.session_name === name))
+          .filter(Boolean)
+          .slice(0, 5);
+        setScoreChartData(chartDataSorted);
+      })
+      .catch(() => setScoreChartData([]));
   }, []);
 
   return (
@@ -91,15 +94,15 @@ const Home = () => {
         Hỗ trợ học sinh ôn luyện, giáo viên tổ chức thi, thống kê kết quả và nhiều tiện ích khác!
         <br />
         <br />
-        <b>✔️ Kho đề phong phú</b>: Đề thi thử, kiểm tra định kỳ, luyện tập theo chuyên đề, cập nhật liên tục.
+        <b>- Kho đề phong phú</b>: Đề thi thử, kiểm tra định kỳ, luyện tập theo chuyên đề, cập nhật liên tục.
         <br />
-        <b>✔️ Giao diện thân thiện</b>: Dễ sử dụng trên mọi thiết bị, từ máy tính đến điện thoại.
+        <b>- Giao diện thân thiện</b>: Dễ sử dụng trên mọi thiết bị, từ máy tính đến điện thoại.
         <br />
-        <b>✔️ Chấm điểm tự động</b>: Kết quả nhanh chóng, phân tích chi tiết từng câu hỏi.
+        <b>- Chấm điểm tự động</b>: Kết quả nhanh chóng, phân tích chi tiết từng câu hỏi.
         <br />
-        <b>✔️ Cộng đồng học toán</b>: Cùng trao đổi, chia sẻ kinh nghiệm, giải đáp thắc mắc.
+        <b>- Cộng đồng học toán</b>: Cùng trao đổi, chia sẻ kinh nghiệm, giải đáp thắc mắc.
         <br />
-        <b>✔️ Miễn phí & tiện lợi</b>: Truy cập mọi lúc, mọi nơi, không cần cài đặt.
+        <b>- Miễn phí & tiện lợi</b>: Truy cập mọi lúc, mọi nơi, không cần cài đặt.
         <br />
         <br />
         Hãy bắt đầu hành trình chinh phục Toán học cùng chúng tôi và nâng cao thành tích của bạn mỗi ngày!
@@ -190,15 +193,19 @@ const Home = () => {
         </Col>
         <Col xs={24} md={8}>
           <Card
-            title={<span><BarChartOutlined /> Biểu đồ tỷ lệ điểm thi</span>}
+            title={
+              <span>
+                <BarChartOutlined /> Biểu đồ tỷ lệ điểm thi
+              </span>
+            }
             bordered={false}
             style={{ minHeight: 340 }}
           >
             {scoreChartData.length > 0 ? (
-              <ScorePieChart data={scoreChartData} />
+              <ScoreBarChart data={scoreChartData} />
             ) : (
               <div style={{ textAlign: 'center', color: '#888', marginTop: 40 }}>
-                Hãy đăng nhập và làm bài để xem biểu đồ tỷ lệ điểm thi của bạn!
+                Hãy đăng nhập và làm bài để xem biểu đồ điểm trung bình từng ca thi của bạn!
               </div>
             )}
           </Card>
