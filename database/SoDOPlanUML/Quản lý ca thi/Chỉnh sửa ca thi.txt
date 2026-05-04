@@ -1,0 +1,45 @@
+@startuml
+autonumber
+skinparam style strictuml
+skinparam sequenceMessageAlign center
+
+' Định nghĩa các thành phần
+actor "Giáo viên" as Actor
+boundary "Giao diện (UI)" as UI
+control "Hệ thống" as System
+database "DB" as DB
+
+title Sơ đồ tuần tự: Chỉnh sửa ca thi
+
+== Truy cập danh sách ==
+Actor -> UI: Chọn "Quản lý ca thi"
+UI -> System: Yêu cầu lấy danh sách ca thi
+System -> DB: Truy vấn danh sách ca thi (SELECT)
+DB --> System: Trả kết quả dữ liệu
+System --> UI: Hiển thị danh sách ca thi
+UI --> Actor: Hiển thị giao diện danh sách
+
+== Khởi tạo chỉnh sửa ==
+Actor -> UI: Chọn "Chỉnh sửa" (ID ca thi)
+UI -> System: Yêu cầu lấy thông tin chi tiết ca thi
+System -> DB: Query thông tin ca thi theo ID
+DB --> System: Trả về dữ liệu hiện tại
+System --> UI: Trả về Form chứa dữ liệu cũ
+UI --> Actor: Hiển thị giao diện chỉnh sửa ca thi
+
+== Lưu thay đổi ==
+Actor -> UI: Sửa thông tin và nhấn "Lưu"
+UI -> System: Gửi yêu cầu cập nhật ca thi
+System -> DB: Kiểm tra tên ca thi có tồn tại không?
+DB --> System: Kết quả kiểm tra (Đã tồn tại / Không tồn tại)
+
+alt đã tồn tại (Hợp lệ để cập nhật)
+    System -> DB: Lưu thay đổi vào CSDL (UPDATE)
+    DB --> System: Xác nhận thành công
+    System --> UI: Thông báo cập nhật thành công
+    UI --> Actor: Hiển thị thông báo thành công
+else không tồn tại (Lỗi dữ liệu)
+    System --> UI: Thông báo cập nhật thất bại
+    UI --> Actor: Hiển thị thông báo thất bại
+end
+@enduml

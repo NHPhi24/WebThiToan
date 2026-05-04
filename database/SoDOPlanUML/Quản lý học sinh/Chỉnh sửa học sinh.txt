@@ -1,0 +1,42 @@
+@startuml
+autonumber
+skinparam style strictuml
+skinparam sequenceMessageAlign center
+
+actor "Giáo viên" as Actor
+boundary "Giao diện (UI)" as UI
+control "Hệ thống" as System
+database "DB" as DB
+
+title Sơ đồ tuần tự: Chỉnh sửa học sinh
+
+== Truy cập chức năng ==
+Actor -> UI: Chọn "Quản lý học sinh"
+UI -> System: Yêu cầu lấy danh sách học sinh
+System -> DB: Truy vấn danh sách học sinh
+DB --> System: Trả kết quả dữ liệu
+System --> UI: Hiển thị danh sách học sinh
+UI --> Actor: Giao diện quản lý học sinh
+
+== Thực hiện chỉnh sửa ==
+Actor -> UI: Chọn "Chỉnh sửa học sinh" (Cụ thể)
+UI -> System: Yêu cầu Form chỉnh sửa
+System -> DB: Lấy thông tin chi tiết học sinh
+DB --> System: Trả về dữ liệu hiện tại
+System --> UI: Hiển thị form (Kèm dữ liệu cũ)
+UI --> Actor: Giao diện form chỉnh sửa
+
+Actor -> UI: Sửa thông tin & nhấn "Lưu"
+UI -> System: Gửi thông tin cập nhật (Tên đăng nhập, Email...)
+System -> DB: Kiểm tra tên đăng nhập và email đã tồn tại?
+DB --> System: Kiểm tra đã tồn tại
+alt đã tồn tại
+    System -> DB: Lưu vào CSDL (Cập nhật dữ liệu)
+    DB --> System: Xác nhận thành công
+    System --> UI: Hiển thị thông báo thành công
+    UI --> Actor: Thông báo thành công & cập nhật lại danh sách
+else không tồn tại
+    System --> UI: Hiển thị thông báo thất bại
+    UI --> Actor: Thông báo lỗi: Trùng dữ liệu
+end
+@enduml

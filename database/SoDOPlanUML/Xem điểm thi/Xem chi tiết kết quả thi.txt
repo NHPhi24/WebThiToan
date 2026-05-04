@@ -1,0 +1,51 @@
+@startuml
+autonumber
+skinparam style strictuml
+skinparam sequenceMessageAlign center
+
+actor "Học sinh" as Actor
+boundary "Giao diện (UI)" as UI
+control "Hệ thống" as System
+database "DB" as DB
+
+title Sơ đồ tuần tự: Xem chi tiết kết quả thi
+
+== Bước 1: Truy cập danh sách điểm ==
+Actor -> UI: Chọn "Quản lý kết quả thi"
+UI -> System: Yêu cầu lấy dữ liệu kết quả thi
+System -> DB: Kiểm tra học sinh có kết quả thi hay không?
+DB --> System: Trả về kết quả
+
+alt không có kết quả nào
+    System --> UI: Hiển thị trang trống
+    UI --> Actor: Thông báo: Chưa có dữ liệu kết quả
+else có kết quả
+    System -> DB: Truy vấn danh sách điểm chi tiết
+    DB --> System: Trả về danh sách điểm
+    System --> UI: Hiển thị danh sách điểm
+    UI --> Actor: Danh sách các kỳ thi đã tham gia
+    
+    == Bước 2: Xem chi tiết bài làm ==
+    Actor -> UI: Chọn "Xem chi tiết" một bài thi
+    UI -> System: Yêu cầu lấy chi tiết bài làm (ID bài thi)
+    System -> DB: Truy vấn đáp án đã chọn & đáp án đúng
+    DB --> System: Trả về dữ liệu chi tiết
+    System --> UI: Hiển thị đáp án đã chọn và nút lời giải
+    UI --> Actor: Chi tiết bài làm & nút "Lời giải"
+
+    == Bước 3: Xem lời giải ==
+    Actor -> UI: Chọn "Lời giải"
+    UI -> System: Yêu cầu xem lời giải của câu hỏi
+    System -> DB: Kiểm tra câu hỏi có lời giải hay không?
+    DB --> System: Kết quả (có / không)
+    
+    alt có lời giải
+        System --> UI: Hiển thị lời giải của câu hỏi
+        UI --> Actor: Nội dung lời giải chi tiết
+    else không
+        System --> UI: Hiển thị chưa có lời giải
+        UI --> Actor: Thông báo: Câu hỏi này chưa cập nhật lời giải
+    end
+end
+
+@enduml

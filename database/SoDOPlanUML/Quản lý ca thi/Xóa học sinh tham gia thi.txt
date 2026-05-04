@@ -1,0 +1,50 @@
+@startuml
+autonumber
+skinparam style strictuml
+skinparam sequenceMessageAlign center
+
+actor "Giáo viên" as Actor
+boundary "Giao diện (UI)" as UI
+control "Hệ thống" as System
+database "DB" as DB
+
+title Sơ đồ tuần tự: Xóa học sinh tham gia thi
+
+== Kiểm tra trạng thái ca thi ==
+Actor -> UI: Chọn "Quản lý ca thi"
+UI -> System: Yêu cầu lấy danh sách ca thi
+System -> DB: Truy vấn danh sách
+DB --> System: Trả kết quả
+System --> UI: Hiển thị danh sách ca thi
+
+Actor -> UI: Chọn "Xem chi tiết" ca thi
+UI -> System: Gửi yêu cầu chi tiết (ID)
+System -> DB: Kiểm tra trạng thái ca thi
+DB --> System: Trả về trạng thái
+
+== Luồng xử lý xóa (Dựa trên trạng thái) ==
+alt Trạng thái là "Sẵn sàng"
+    System --> UI: Hiển thị nút "Đăng ký thi"
+    Actor -> UI: Chọn "Đăng ký thi"
+    UI -> System: Yêu cầu danh sách học sinh
+    System -> DB: Truy vấn danh sách học sinh & trạng thái
+    DB --> System: Trả về dữ liệu
+    
+    System -> System: Kiểm tra học sinh bị "Từ chối"
+    
+    alt Có học sinh bị "Từ chối"
+        System --> UI: Hiển thị danh sách kèm nút "Xóa"
+        Actor -> UI: Nhấn nút "Xóa"
+        UI --> Actor: Hiển thị Popup xác nhận
+        
+        Actor -> UI: Chọn "Có" (Xác nhận xóa)
+        UI -> System: Yêu cầu xóa khỏi ca thi
+        System -> DB: Thực hiện lệnh DELETE
+        DB --> System: Xác nhận thành công
+        System --> UI: Thông báo thành công
+        UI --> Actor: Cập nhật lại danh sách
+    end
+else Trạng thái khác
+    System --> UI: Chỉ hiển thị thông tin (Ẩn các nút thao tác)
+end
+@enduml

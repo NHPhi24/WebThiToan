@@ -1,0 +1,55 @@
+@startuml
+autonumber
+skinparam style strictuml
+skinparam sequenceMessageAlign center
+
+actor "Giáo viên" as Actor
+boundary "Giao diện (UI)" as UI
+control "Hệ thống" as System
+database "DB" as DB
+
+title Sơ đồ tuần tự: Thêm học sinh tham gia thi
+
+== Kiểm tra trạng thái ca thi ==
+Actor -> UI: Chọn "Xem chi tiết" ca thi
+UI -> System: Yêu cầu thông tin ca thi
+System -> DB: Kiểm tra trạng thái ca thi
+DB --> System: Trả về trạng thái
+
+alt trạng thái là "Sẵn sàng"
+    System --> UI: Hiển thị nút "Đăng ký thi"
+    Actor -> UI: Chọn "Đăng ký thi"
+    UI -> System: Yêu cầu danh sách đăng ký hiện tại
+    System -> DB: Truy vấn dữ liệu đăng ký
+    DB --> System: Trả về danh sách
+    System --> UI: Hiển thị danh sách & nút "Tạo học sinh tham gia"
+    
+    Actor -> UI: Chọn "Tạo học sinh tham gia thi"
+    UI --> Actor: Hiển thị Modal lựa chọn (Học sinh có sẵn / Tạo mới)
+
+    alt Chọn học sinh đã có
+        Actor -> UI: Chọn học sinh từ danh sách ID
+        UI -> System: Gửi yêu cầu "Thêm vào ca thi" (Danh sách ID)
+        System -> DB: Lưu thông tin vào bảng đăng ký (INSERT)
+        DB --> System: Xác nhận thành công
+        System --> UI: Thông báo thành công
+    
+    else Tạo học sinh mới
+        Actor -> UI: Nhập thông tin học sinh mới
+        Actor -> UI: Chọn "Tạo và thêm vào ca thi"
+        UI -> System: Gửi thông tin (Tên đăng nhập, Email,...)
+        System -> DB: Kiểm tra trùng lặp (Username/Email)
+        DB --> System: Kết quả kiểm tra
+        
+        alt không tồn tại (Hợp lệ)
+            System -> DB: Tạo tài khoản & Thêm vào ca thi
+            DB --> System: Xác nhận thành công
+            System --> UI: Thông báo thành công
+        else đã tồn tại
+            System --> UI: Thông báo lỗi (Tài khoản đã tồn tại)
+        end
+    end
+else trạng thái khác
+    System --> UI: Không hiển thị chức năng đăng ký
+end
+@enduml

@@ -1,0 +1,37 @@
+@startuml
+autonumber
+skinparam style strictuml
+skinparam sequenceMessageAlign center
+
+' Định nghĩa các thành phần
+actor "Giáo viên" as Actor
+boundary "Giao diện (UI)" as UI
+control "Hệ thống" as System
+database "DB" as DB
+
+title Sơ đồ tuần tự: Xóa đề thi
+
+== Điều hướng chức năng ==
+Actor -> UI: Chọn "Quản lý đề thi"
+UI -> System: Yêu cầu lấy danh sách đề thi
+System -> DB: Truy vấn danh sách đề thi (SELECT)
+DB --> System: Trả kết quả dữ liệu
+System --> UI: Hiển thị danh sách đề thi
+UI --> Actor: Hiển thị giao diện danh sách
+
+== Xác nhận xóa ==
+Actor -> UI: Chọn "Xóa đề thi" (ID)
+UI -> UI: Hiển thị Popup xác nhận xóa
+
+alt đóng (Hủy xóa)
+    Actor -> UI: Chọn "Đóng"
+    UI -> UI: Thực hiện đóng Popup
+else có (Xác nhận xóa)
+    Actor -> UI: Chọn "Có"
+    UI -> System: Gửi yêu cầu xóa đề thi theo ID
+    System -> DB: Thực hiện xóa dữ liệu (DELETE)
+    DB --> System: Xác nhận đã xóa thành công
+    System --> UI: Trả về thông báo thành công
+    UI --> Actor: Hiển thị thông báo xóa thành công
+end
+@enduml

@@ -1,0 +1,39 @@
+@startuml
+autonumber
+skinparam style strictuml
+skinparam sequenceMessageAlign center
+
+' Định nghĩa các thành phần
+actor "Admin" as Actor
+boundary "Giao diện (UI)" as UI
+control "Hệ thống" as System
+database "DB" as DB
+
+title Sơ đồ tuần tự: Xóa người dùng
+
+== Truy cập danh sách ==
+Actor -> UI: Chọn "Quản lý người dùng"
+UI -> System: Yêu cầu lấy danh sách người dùng
+System -> DB: Query danh sách người dùng
+DB --> System: Trả kết quả dữ liệu
+System --> UI: Hiển thị danh sách người dùng
+UI --> Actor: Hiển thị giao diện danh sách
+
+== Xác nhận xóa ==
+Actor -> UI: Chọn "Xóa người dùng" (ID)
+UI -> UI: Hiển thị Popup xác nhận xóa
+
+alt không (Hủy xóa)
+    Actor -> UI: Chọn "Không"
+    UI -> UI: Đóng Popup
+else có (Xác nhận xóa)
+    Actor -> UI: Chọn "Có"
+    UI -> System: Gửi yêu cầu xóa theo ID
+    System -> DB: Thực hiện xóa khỏi CSDL (DELETE)
+    DB --> System: Xác nhận đã xóa thành công
+    System --> UI: Trả về thông báo thành công
+    UI --> Actor: Hiển thị thông báo xóa thành công
+end
+
+@endum
+@enduml

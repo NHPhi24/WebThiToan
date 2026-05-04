@@ -1,0 +1,38 @@
+@startuml
+autonumber
+skinparam style strictuml
+skinparam sequenceMessageAlign center
+
+actor "Giáo viên" as Actor
+boundary "Giao diện (UI)" as UI
+control "Hệ thống" as System
+database "DB" as DB
+
+title Sơ đồ tuần tự: Xem chi tiết câu hỏi
+
+== Truy cập ngân hàng câu hỏi ==
+Actor -> UI: Chọn "Quản lý ngân hàng câu hỏi"
+UI -> System: Yêu cầu danh sách câu hỏi
+System -> DB: Query danh sách câu hỏi
+DB --> System: Trả kết quả
+System --> UI: Hiển thị danh sách
+UI --> Actor: Hiển thị giao diện danh sách
+
+== Xem chi tiết ==
+Actor -> UI: Chọn "Xem chi tiết" (ID)
+UI -> System: Gửi yêu cầu chi tiết theo ID
+System -> DB: Kiểm tra ID câu hỏi có tồn tại?
+DB --> System: Kết quả (Có/Không)
+
+alt có
+    System -> DB: Truy vấn thông tin chi tiết câu hỏi
+    DB --> System: Trả về dữ liệu chi tiết
+    System --> UI: Trả về dữ liệu hiển thị Modal
+    UI --> Actor: Hiển thị Modal thông tin chi tiết câu hỏi
+else không
+    System --> UI: Trả về thông báo lỗi (ID không tồn tại)
+    UI --> Actor: Hiển thị thông báo thất bại
+end
+
+@endum
+@enduml

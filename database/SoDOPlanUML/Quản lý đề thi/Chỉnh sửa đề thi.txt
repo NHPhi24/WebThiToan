@@ -1,0 +1,46 @@
+@startuml
+autonumber
+skinparam style strictuml
+skinparam sequenceMessageAlign center
+
+' Định nghĩa các thành phần
+actor "Giáo viên" as Actor
+boundary "Giao diện (UI)" as UI
+control "Hệ thống" as System
+database "DB" as DB
+
+title Sơ đồ tuần tự: Chỉnh sửa đề thi
+
+== Truy cập danh sách ==
+Actor -> UI: Chọn "Quản lý đề thi"
+UI -> System: Yêu cầu lấy danh sách đề thi
+System -> DB: Query danh sách đề thi
+DB --> System: Trả kết quả
+System --> UI: Hiển thị danh sách đề thi
+UI --> Actor: Hiển thị giao diện danh sách
+
+== Khởi tạo chỉnh sửa ==
+Actor -> UI: Chọn "Chỉnh sửa" (ID đề thi)
+UI -> System: Yêu cầu lấy thông tin chi tiết đề thi
+System -> DB: Query đề thi theo ID
+DB --> System: Trả về dữ liệu hiện tại
+System --> UI: Trả về Form chứa dữ liệu cũ
+UI --> Actor: Hiển thị giao diện chỉnh sửa
+
+== Lưu thay đổi ==
+Actor -> UI: Sửa thông tin (Tên/Mã đề) và nhấn "Lưu"
+UI -> System: Gửi yêu cầu cập nhật đề thi
+System -> DB: Kiểm tra ID/Mã đề thi có tồn tại hợp lệ?
+DB --> System: Kết quả (Đã tồn tại/Không tồn tại)
+
+alt đã tồn tại (Hợp lệ để cập nhật)
+    System -> DB: Lưu thay đổi vào CSDL (UPDATE)
+    DB --> System: Xác nhận thành công
+    System --> UI: Thông báo thành công
+    UI --> Actor: Hiển thị thông báo thành công
+else không tồn tại (Lỗi dữ liệu)
+    System --> UI: Thông báo thất bại
+    UI --> Actor: Hiển thị thông báo thất bại
+end
+
+@enduml

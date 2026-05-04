@@ -1,0 +1,45 @@
+@startuml
+autonumber
+skinparam style strictuml
+skinparam sequenceMessageAlign center
+
+' Định nghĩa các thành phần
+actor "Admin" as Actor
+boundary "Giao diện (UI)" as UI
+control "Hệ thống" as System
+database "DB" as DB
+
+title Sơ đồ tuần tự: Thêm mới người dùng
+
+== Truy cập danh sách ==
+Actor -> UI: Chọn "Quản lý người dùng"
+UI -> System: Yêu cầu lấy danh sách người dùng
+System -> DB: Query dữ liệu người dùng
+DB --> System: Trả về danh sách
+System --> UI: Hiển thị danh sách người dùng
+UI --> Actor: Hiển thị giao diện danh sách
+
+== Khởi tạo Thêm mới ==
+Actor -> UI: Click "Thêm mới người dùng"
+UI -> System: Yêu cầu Form thêm mới
+System --> UI: Trả về Form nhập liệu
+UI --> Actor: Hiển thị Form thêm mới
+
+== Thực hiện lưu dữ liệu ==
+Actor -> UI: Nhập thông tin và nhấn "Lưu"
+UI -> System: Gửi dữ liệu người dùng mới
+System -> DB: Kiểm tra Username/Email tồn tại?
+DB --> System: Kết quả kiểm tra
+
+alt Chưa tồn tại
+    System -> DB: Thực hiện lưu người dùng mới
+    DB --> System: Xác nhận lưu thành công
+    System --> UI: Trả về thông báo thành công
+    UI --> Actor: Hiển thị thông báo thành công
+else Đã tồn tại
+    System --> UI: Trả về thông báo lỗi (Dữ liệu đã tồn tại)
+    UI --> Actor: Hiển thị thông báo thất bại
+end
+
+@endum
+@enduml

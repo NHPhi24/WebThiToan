@@ -1,0 +1,38 @@
+@startuml
+autonumber
+skinparam style strictuml
+skinparam sequenceMessageAlign center
+
+' Định nghĩa các thành phần
+actor "Giáo viên" as Actor
+boundary "Giao diện (UI)" as UI
+control "Hệ thống" as System
+database "DB" as DB
+
+title Sơ đồ tuần tự: Xem chi tiết đề thi
+
+== Truy cập quản lý đề thi ==
+Actor -> UI: Chọn "Quản lý đề thi"
+UI -> System: Yêu cầu lấy danh sách đề thi
+System -> DB: Truy vấn danh sách đề thi (SELECT)
+DB --> System: Trả kết quả dữ liệu
+System --> UI: Hiển thị danh sách đề thi
+UI --> Actor: Hiển thị giao diện danh sách
+
+== Xem thông tin chi tiết ==
+Actor -> UI: Chọn "Xem chi tiết" (ID đề thi)
+UI -> System: Gửi yêu cầu chi tiết kèm ID
+System -> DB: Kiểm tra ID đề thi có tồn tại?
+DB --> System: Phản hồi trạng thái (Có/Không)
+
+alt có tồn tại
+    System -> DB: Truy vấn thông tin chi tiết (Đề thi & Câu hỏi)
+    DB --> System: Trả về dữ liệu chi tiết
+    System --> UI: Trả về dữ liệu hiển thị Modal
+    UI --> Actor: Hiển thị Modal chi tiết đề thi
+else không tồn tại
+    System --> UI: Thông báo lỗi (ID không hợp lệ)
+    UI --> Actor: Hiển thị thông báo thất bại
+end
+
+@enduml

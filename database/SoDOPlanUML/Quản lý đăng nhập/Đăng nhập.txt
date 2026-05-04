@@ -1,0 +1,41 @@
+@startuml
+autonumber
+skinparam style strictuml
+skinparam sequenceMessageAlign center
+
+' Định nghĩa các thành phần
+actor "Người dùng\n(Admin/Giáo viên/Học sinh/Khách)" as Actor
+boundary "Giao diện (UI)" as UI
+control "Hệ thống" as System
+database "DB" as DB
+
+title Sơ đồ tuần tự: Chức năng Đăng nhập (Minimalist)
+
+== Truy cập trang ==
+Actor -> UI: Vào trang chủ
+UI -> System: Yêu cầu dữ liệu trang chủ
+System --> UI: Trả về giao diện trang chủ
+UI --> Actor: Hiển thị trang chủ
+
+== Khởi tạo Đăng nhập ==
+Actor -> UI: Click "Chọn đăng nhập"
+UI -> System: Yêu cầu form đăng nhập
+System --> UI: Trả về trang đăng nhập
+UI --> Actor: Hiển thị trang đăng nhập
+
+== Xác thực tài khoản ==
+Actor -> UI: Nhập Username & Password
+UI -> System: Gửi yêu cầu đăng nhập
+System -> DB: Kiểm tra thông tin
+DB --> System: Trả về kết quả (Khớp/Không khớp)
+
+' Nhánh rẽ xử lý kết quả
+alt Khớp dữ liệu
+    System --> UI: Thông báo thành công & Redirect
+    UI --> Actor: Hiển thị thông báo thành công và về trang chủ
+else Không khớp
+    System --> UI: Thông báo lỗi xác thực
+    UI --> Actor: Hiển thị thông báo thất bại
+end
+
+@endum

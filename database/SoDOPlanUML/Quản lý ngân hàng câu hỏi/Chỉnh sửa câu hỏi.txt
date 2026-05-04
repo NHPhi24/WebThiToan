@@ -1,0 +1,48 @@
+@startuml
+autonumber
+skinparam style strictuml
+skinparam sequenceMessageAlign center
+
+' Định nghĩa các thành phần
+actor "Giáo viên" as Actor
+boundary "Giao diện (UI)" as UI
+control "Hệ thống" as System
+database "DB" as DB
+
+title Sơ đồ tuần tự: Chỉnh sửa câu hỏi
+
+== Xem danh sách ==
+Actor -> UI: Chọn "Quản lý ngân hàng câu hỏi"
+UI -> System: Yêu cầu lấy danh sách câu hỏi
+System -> DB: Query danh sách
+DB --> System: Trả kết quả dữ liệu
+System --> UI: Hiển thị danh sách câu hỏi
+UI --> Actor: Hiển thị giao diện danh sách
+
+== Khởi tạo chỉnh sửa ==
+Actor -> UI: Chọn "Chỉnh sửa" (ID)
+UI -> System: Yêu cầu lấy thông tin câu hỏi
+System -> DB: Query câu hỏi theo ID
+DB --> System: Trả về dữ liệu câu hỏi hiện tại
+System --> UI: Hiển thị Form chứa dữ liệu cũ
+UI --> Actor: Hiển thị giao diện chỉnh sửa
+
+== Lưu thay đổi & Kiểm tra tương đồng ==
+Actor -> UI: Sửa thông tin và nhấn "Lưu"
+UI -> System: Gửi nội dung đã chỉnh sửa
+System -> DB: Truy vấn các câu hỏi khác trong DB
+DB --> System: Trả về danh sách nội dung để đối chiếu
+System -> System: Kiểm tra độ tương đồng
+
+alt không có hoặc ít tương đồng
+    System -> DB: Cập nhật (Update) vào CSDL
+    DB --> System: Xác nhận cập nhật thành công
+    System --> UI: Thông báo thành công
+    UI --> Actor: Hiển thị thông báo thành công
+else tương đồng trên 80% hoặc toàn bộ
+    System --> UI: Thông báo thất bại (Nội dung trùng lặp)
+    UI --> Actor: Hiển thị thông báo thất bại
+end
+
+@endum
+@enduml

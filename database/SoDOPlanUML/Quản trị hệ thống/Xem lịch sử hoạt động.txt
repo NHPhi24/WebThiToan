@@ -1,0 +1,30 @@
+@startuml
+autonumber
+skinparam style strictuml
+skinparam sequenceMessageAlign center
+
+' Định nghĩa các thành phần
+actor "Admin" as Actor
+boundary "Giao diện (UI)" as UI
+control "Hệ thống" as System
+database "DB" as DB
+
+title Sơ đồ tuần tự: Xem lịch sử hệ thống
+
+== Truy cập lịch sử ==
+Actor -> UI: Chọn "Lịch sử hệ thống"
+UI -> System: Yêu cầu lấy dữ liệu lịch sử
+System -> DB: Truy vấn dữ liệu (Query logs)
+DB --> System: Trả về kết quả dữ liệu
+
+' Nhánh rẽ xử lý kết quả lấy dữ liệu
+alt Thành công
+    System --> UI: Trả về danh sách lịch sử
+    UI --> Actor: Hiển thị danh sách lịch sử hệ thống
+else Thất bại
+    System --> UI: Thông báo lỗi truy xuất dữ liệu
+    UI --> Actor: Hiển thị thông báo thất bại
+end
+
+@endum
+@enduml

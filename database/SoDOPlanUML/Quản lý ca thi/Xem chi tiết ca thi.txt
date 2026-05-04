@@ -1,0 +1,37 @@
+@startuml
+autonumber
+skinparam style strictuml
+skinparam sequenceMessageAlign center
+
+actor "Giáo viên" as Actor
+boundary "Giao diện (UI)" as UI
+control "Hệ thống" as System
+database "DB" as DB
+
+title Sơ đồ tuần tự: Xem chi tiết ca thi
+
+== Truy cập danh sách ==
+Actor -> UI: Chọn "Quản lý ca thi"
+UI -> System: Yêu cầu lấy danh sách ca thi
+System -> DB: Truy vấn danh sách ca thi
+DB --> System: Trả kết quả dữ liệu
+System --> UI: Hiển thị danh sách ca thi
+UI --> Actor: Hiển thị giao diện danh sách
+
+== Xem chi tiết ==
+Actor -> UI: Chọn "Xem chi tiết" (ID ca thi)
+UI -> System: Gửi yêu cầu chi tiết kèm ID
+System -> DB: Kiểm tra ID ca thi có tồn tại không?
+DB --> System: Phản hồi trạng thái (Có/Không)
+
+alt có tồn tại
+    System -> DB: Truy vấn dữ liệu chi tiết ca thi
+    DB --> System: Trả về thông tin chi tiết
+    System --> UI: Trả về dữ liệu hiển thị
+    UI --> Actor: Hiển thị thông tin chi tiết ca thi
+else không tồn tại
+    System --> UI: Thông báo lỗi (ID không hợp lệ)
+    UI --> Actor: Hiển thị thông báo thất bại
+end
+
+@enduml

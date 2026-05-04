@@ -1,0 +1,52 @@
+@startuml
+autonumber
+skinparam style strictuml
+skinparam sequenceMessageAlign center
+
+' Định nghĩa các thành phần
+actor "Giáo viên" as Actor
+boundary "Giao diện (UI)" as UI
+control "Hệ thống" as System
+database "DB" as DB
+
+title Sơ đồ tuần tự: Chỉnh sửa cấu trúc đề thi
+
+== Điều hướng chức năng ==
+Actor -> UI: Chọn "Quản lý đề thi"
+UI -> System: Yêu cầu lấy danh sách đề thi
+System -> DB: Query danh sách đề thi
+DB --> System: Trả kết quả
+System --> UI: Hiển thị danh sách và nút thêm cấu trúc
+
+Actor -> UI: Chọn "Thêm đề thi"
+UI -> System: Yêu cầu Form và nút cấu trúc
+System --> UI: Hiển thị giao diện Form và nút cấu trúc đề thi
+
+Actor -> UI: Chọn "Cấu trúc đề thi"
+UI -> System: Yêu cầu danh sách các cấu trúc đã có
+System -> DB: Query danh sách cấu trúc
+DB --> System: Trả kết quả
+System --> UI: Hiển thị danh sách cấu trúc đề thi
+
+== Thực hiện chỉnh sửa ==
+Actor -> UI: Chọn "Chỉnh sửa" (ID cấu trúc)
+UI -> System: Yêu cầu Form chỉnh sửa
+System --> UI: Hiển thị Form nhập liệu
+Actor -> UI: Sửa thông tin và nhấn "Lưu"
+
+UI -> System: Gửi yêu cầu cập nhật cấu trúc
+System -> DB: Kiểm tra ID cấu trúc có tồn tại?
+DB --> System: Kết quả (Đã tồn tại/Không tồn tại)
+
+alt đã tồn tại
+    System -> DB: Cập nhật thông tin vào CSDL (UPDATE)
+    DB --> System: Xác nhận thành công
+    System --> UI: Thông báo thành công
+    UI --> Actor: Hiển thị thông báo thành công
+else không tồn tại
+    System --> UI: Thông báo thất bại
+    UI --> Actor: Hiển thị thông báo thất bại
+end
+
+@endum
+@enduml

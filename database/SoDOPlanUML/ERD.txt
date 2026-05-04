@@ -1,0 +1,108 @@
+@startuml
+!theme plain
+skinparam Linetype ortho
+hide circle
+
+entity "Users" as User {
+  * id : int <<PK>>
+  --
+  username : string
+  password : string
+  full_name : string
+  email : string
+  role : string
+  created_by : int <<FK>>
+  profile_info : jsonb
+  created_at : timestamp
+}
+
+entity "AuditLogs" as Audit {
+  * id : int <<PK>>
+  --
+  actor_id : int <<FK>>
+  action : string
+  resource_type : string
+  resource_id : string
+  details : jsonb
+}
+
+entity "Questions" as Question {
+  * id : int <<PK>>
+  --
+  content : text
+  ans_a : text
+  ans_b : text
+  ans_c : text
+  ans_d : text
+  correct_ans : char
+  level : int
+}
+
+entity "ExamTemplates" as Template {
+  * id : int <<PK>>
+  --
+  template_name : string
+  total_questions : int
+  basic_percent : int
+  advanced_percent : int
+}
+
+entity "Exams" as Exam {
+  * id : int <<PK>>
+  --
+  exam_code : string
+  template_id : int <<FK>>
+}
+
+entity "ExamQuestions" as ExamQ {
+  * exam_id : int <<PK, FK>>
+  * question_id : int <<PK, FK>>
+  --
+  order_index : int
+}
+
+entity "ExamSessions" as Session {
+  * id : int <<PK>>
+  --
+  session_name : string
+  start_time : timestamp
+  duration : int
+  status : string
+}
+
+entity "Participants" as Participant {
+  * session_id : int <<PK, FK>>
+  * user_id : int <<PK, FK>>
+  --
+  register_status : int
+  has_joined : bool
+}
+
+entity "Results" as Result {
+  * id : int <<PK>>
+  --
+  student_id : int <<FK>>
+  exam_id : int <<FK>>
+  session_id : int <<FK>>
+  score : decimal
+  answers_log : jsonb
+  is_submitted : bool
+}
+
+' Relationships
+User ||--o{ Question : "tạo"
+User ||--o{ Session : "quản lý"
+User ||--o{ Participant : "đăng ký"
+User ||--o{ Result : "làm bài"
+User ||--o{ Audit : "thực hiện"
+
+Template ||--o{ Exam : "định nghĩa"
+Exam ||--|{ ExamQ : "chứa"
+Question ||--|{ ExamQ : "thuộc về"
+
+Session ||--o{ Participant : "có"
+Session ||--o{ Result : "ghi nhận"
+Exam ||--o{ Result : "áp dụng"
+
+@endum
+@enduml

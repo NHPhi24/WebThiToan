@@ -1,0 +1,80 @@
+@startuml
+autonumber
+skinparam style strictuml
+skinparam sequenceMessageAlign center
+
+actor "Học sinh" as Actor
+boundary "Giao diện (UI)" as UI
+control "Hệ thống" as System
+database "DB" as DB
+
+title Sơ đồ tuần tự: Làm bài thi
+
+== Bước 1: Chọn ca thi đang diễn ra ==
+Actor -> UI: Chọn "Quản lý ca thi"
+UI -> System: Yêu cầu lấy danh sách ca thi
+System -> DB: Truy vấn danh sách
+DB --> System: Trả kết quả dữ liệu
+System --> UI: Hiển thị danh sách ca thi
+
+Actor -> UI: Chọn "Xem chi tiết" ca thi
+UI -> System: Gửi yêu cầu chi tiết (ID ca thi)
+System -> DB: Kiểm tra ca thi ở trạng thái nào?
+DB --> System: Trả về trạng thái (đang diễn ra / khác)
+
+alt đang diễn ra
+    System --> UI: Hiển thị nút "Đến làm bài thi"
+    UI --> Actor: Giao diện kèm nút vào thi
+    
+    Actor -> UI: Chọn "Đến làm bài thi"
+    UI -> System: Chuyển đến trạng thái làm bài thi
+    
+    == Bước 2: Kiểm tra điều kiện vào thi ==
+    System -> DB: Kiểm tra đăng ký thi đã được phê duyệt?
+    DB --> System: Kết quả phê duyệt (phê duyệt / khác)
+    
+    alt phê duyệt
+        System --> UI: Cho phép "Bắt đầu thi"
+        Actor -> UI: Chọn "Bắt đầu thi"
+        UI -> System: Yêu cầu lấy đề thi
+        System -> DB: Lấy ngẫu nhiên mã đề & câu hỏi
+        DB --> System: Trả về dữ liệu đề thi
+        System --> UI: Hiển thị từng câu hỏi
+        
+        == Bước 3: Trong quá trình làm bài ==
+        loop Thời gian thi còn hiệu lực
+            Actor -> UI: Chọn đáp án & ấn "Câu tiếp theo"
+            UI -> System: Ghi nhận câu trả lời tạm thời
+            System -> System: Kiểm tra thời gian thi
+        end
+        
+        alt chưa hết giờ
+            Actor -> UI: Chọn "Nộp bài"
+            UI -> System: Gửi yêu cầu nộp bài
+        else hết giờ
+            System -> System: Tự động nộp bài
+        end
+        
+        == Bước 4: Kết quả nộp bài ==
+        System -> System: Kiểm tra nộp bài thành công?
+        
+        alt thành công
+            System -> DB: Lưu kết quả vào CSDL
+            DB --> System: Xác nhận lưu thành công
+            System --> UI: Hiển thị thông báo thành công
+            UI --> Actor: Thông báo: Nộp bài thành công
+        else không
+            System --> UI: Hiển thị thông báo thất bại
+            UI --> Actor: Thông báo lỗi nộp bài
+        end
+        
+    else khác
+        System --> UI: Khóa nút làm bài thi
+        UI --> Actor: Thông báo: Nút làm bài thi bị khóa
+    end
+
+else khác (trạng thái ca thi)
+    System --> UI: Hiển thị trang trống
+    UI --> Actor: Thông báo: Ca thi không khả dụng
+end
+@enduml

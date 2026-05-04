@@ -1,0 +1,54 @@
+@startuml
+autonumber
+skinparam style strictuml
+skinparam sequenceMessageAlign center
+
+actor "Học sinh" as Actor
+boundary "Giao diện (UI)" as UI
+control "Hệ thống" as System
+database "DB" as DB
+
+title Sơ đồ tuần tự: Gửi yêu cầu đăng ký thi
+
+== Bước 1: Chọn ca thi ==
+Actor -> UI: Chọn "Quản lý ca thi"
+UI -> System: Yêu cầu lấy danh sách ca thi
+System -> DB: Truy vấn danh sách ca thi
+DB --> System: Trả kết quả dữ liệu
+System --> UI: Hiển thị danh sách ca thi
+UI --> Actor: Giao diện danh sách ca thi
+
+== Bước 2: Kiểm tra trạng thái ca thi ==
+Actor -> UI: Chọn "Xem chi tiết" ca thi
+UI -> System: Gửi yêu cầu chi tiết (ID ca thi)
+System -> DB: Truy vấn trạng thái ca thi hiện tại
+DB --> System: Trả về trạng thái (sẵn sàng / khác)
+
+alt sẵn sàng
+    System --> UI: Hiển thị nút "Đăng ký thi"
+    UI --> Actor: Giao diện chi tiết kèm nút đăng ký
+    
+    == Bước 3: Thực hiện đăng ký ==
+    Actor -> UI: Nhấn nút "Đăng ký thi"
+    UI -> System: Yêu cầu hiển thị xác nhận
+    System --> UI: Hiển thị Modal xác nhận đăng ký
+    UI --> Actor: Popup xác nhận (đăng ký / đóng)
+
+    alt đăng ký
+        Actor -> UI: Chọn "đăng ký"
+        UI -> System: Gửi yêu cầu lưu đăng ký
+        System -> DB: Lưu vào CSDL (Insert đăng ký)
+        DB --> System: Xác nhận lưu thành công
+        System --> UI: Hiển thị thông báo thành công
+        UI --> Actor: Thông báo: Đăng ký thi thành công
+    else đóng
+        Actor -> UI: Chọn "đóng"
+        UI -> UI: Đóng modal
+    end
+
+else khác
+    System --> UI: Hiển thị thông tin chi tiết (không có nút đăng ký)
+    UI --> Actor: Thông báo: Ca thi không ở trạng thái sẵn sàng
+end
+
+@enduml

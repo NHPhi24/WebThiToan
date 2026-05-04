@@ -1,0 +1,160 @@
+@startuml
+' Cấu hình giao diện để sơ đồ gọn hơn
+skinparam Monochrome true
+skinparam ClassBackgroundColor white
+skinparam ClassBorderThickness 1
+skinparam PackageStyle rectangle
+skinparam Padding 2
+skinparam Nodesep 60
+skinparam Ranksep 60
+hide empty members
+
+title Hệ Thống Quản Lý Thi Trực Tuyến (Class Diagram)
+
+package "Quản trị người dùng" {
+    class "Người dùng (Users)" as User {
+        + id: int [PK]
+        + username: string
+        + password: string
+        + full_name: string
+        + email: string
+        + role: string
+        + created_by: int [FK]
+        + profile_info: jsonb
+        + created_at: timestamp
+        --
+        + dangNhap()
+        + dangXuat()
+        + doiMatKhau()
+        + layDanhSach()
+        + xemChiTiet()
+        + themMoi()
+        + chinhSua()
+        + xoa()
+        + nhapHangLoat()
+    }
+
+    class "Lịch sử hệ thống (Audit Logs)" as Audit {
+        + id: int [PK]
+        + actor_id: int [FK]
+        + action: string
+        + resource_type: string
+        + resource_id: string
+        + details: jsonb
+        --
+        + layDanhSach()
+    }
+}
+
+package "Quản lý nội dung thi" {
+    class "Câu hỏi (Questions)" as Question {
+        + id: int [PK]
+        + content: text
+        + ans_a, ans_b, ans_c, ans_d: text
+        + correct_ans: char
+        + level: int
+        --
+        + layDanhSach()
+        + xemChiTiet()
+        + themMoi()
+        + chinhSua()
+        + xoa()
+        + nhapHangLoat()
+    }
+
+    class "Cấu trúc đề (Exam Templates)" as Template {
+        + id: int [PK]
+        + template_name: string
+        + total_questions: int
+        + basic_percent: int
+        + advanced_percent: int
+        --
+        + layDanhSach()
+        + xemChiTiet()
+        + themMoi()
+        + chinhSua()
+        + xoa()
+    }
+
+    class "Đề thi (Exams)" as Exam {
+        + id: int [PK]
+        + exam_code: string
+        + template_id: int [FK]
+        --
+        + layDanhSach()
+        + xemChiTiet()
+        + themMoi()
+        + chinhSua()
+        + xoa()
+    }
+
+    class "Câu hỏi của đề (Exam Questions)" as ExamQ {
+        + exam_id: int [PK, FK]
+        + question_id: int [PK, FK]
+        + order_index: int
+        --
+        + luuCauHoiVaoDeThi()
+    }
+}
+
+package "Quản lý thi & Kết quả" {
+    class "Ca thi (Exam Sessions)" as Session {
+        + id: int [PK]
+        + session_name: string
+        + start_time: timestamp
+        + duration: int
+        + status: string
+        + exam_ids: int[]
+        --
+        + layDanhSach()
+        + themMoi()
+        + chinhSua()
+        + xoa()
+        + doiTrangThai()
+    }
+
+    class "Đăng ký ca thi (Participants)" as Participant {
+        + session_id: int [PK, FK]
+        + user_id: int [PK, FK]
+        + register_status: int
+        + has_joined: bool
+        --
+        + layDanhSach()
+        + dangKyThi()
+        + huyDangKyThi()
+        + dangKyChoHocSinh()
+        + pheDuyetHoacTuChoi()
+        + xoaHocSinhThamGia()
+    }
+
+    class "Kết quả thi (Results)" as Result {
+        + id: int [PK]
+        + student_id: int [FK]
+        + exam_id: int [FK]
+        + score: decimal
+        + answers_log: jsonb
+        + is_submitted: bool
+        --
+        + layDanhSach()
+        + nopBai()
+        + nopBaiTuDong()
+        + xemChiTiet()
+    }
+}
+
+' Mối quan hệ rút gọn
+User "1" -- "0..*" Question : "tạo"
+User "1" -- "0..*" Session : "quản lý"
+User "1" -- "0..*" Participant : "đăng ký"
+User "1" -- "0..*" Result : "làm bài"
+User "1" -- "0..*" Audit : "thực hiện"
+
+Template "1" -- "0..*" Exam : "định nghĩa"
+Exam "1" *-- "0..*" ExamQ
+Question "1" *-- "0..*" ExamQ
+
+Session "1" -- "0..*" Participant
+Session "1" -- "0..*" Result
+Exam "1" -- "0..*" Result
+
+@endum

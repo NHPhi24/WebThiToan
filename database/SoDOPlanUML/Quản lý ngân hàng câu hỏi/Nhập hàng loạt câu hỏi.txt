@@ -1,0 +1,55 @@
+@startuml
+autonumber
+skinparam style strictuml
+skinparam sequenceMessageAlign center
+
+' Định nghĩa các thành phần
+actor "Giáo viên" as Actor
+boundary "Giao diện (UI)" as UI
+control "Hệ thống" as System
+database "DB" as DB
+
+title Sơ đồ tuần tự: Import câu hỏi từ file Excel
+
+== Khởi tạo Import ==
+Actor -> UI: Chọn "Quản lý ngân hàng câu hỏi"
+UI -> System: Yêu cầu lấy danh sách & nút Import
+System --> UI: Hiển thị danh sách và nút Import
+Actor -> UI: Nhấn nút "Import"
+UI -> UI: Hiển thị Modal Import (Chọn file/Tải mẫu)
+
+opt Tải mẫu Excel
+    Actor -> UI: Chọn "Xuất mẫu"
+    UI -> System: Yêu cầu tải file mẫu
+    System --> Actor: Tải file mẫu .xlsx về máy
+end
+
+== Thực hiện Import ==
+Actor -> UI: Chọn file Excel và nhấn "Import"
+UI -> System: Gửi file Excel (.xlsx)
+System -> System: Kiểm tra đúng mẫu quy định?
+
+alt #Transparent file không hợp lệ
+    System --> UI: Trả về thông báo lỗi định dạng
+    UI --> Actor: Hiển thị thông báo thất bại
+else #Transparent file hợp lệ
+    System -> System: Đọc dữ liệu file
+    System --> UI: Hiển thị bảng dữ liệu tạm thời
+    
+    System -> DB: Truy vấn nội dung câu hỏi hiện có
+    DB --> System: Trả về danh sách nội dung đối chiếu
+    System -> System: Kiểm tra độ tương đồng nội dung
+
+    alt #Transparent tương đồng trên 80% hoặc toàn bộ
+        System --> UI: Thông báo lỗi nội dung trùng lặp
+        UI --> Actor: Hiển thị thông báo thất bại
+    else #Transparent không có hoặc ít tương đồng
+        System -> DB: Lưu danh sách câu hỏi vào CSDL
+        DB --> System: Xác nhận lưu thành công
+        System --> UI: Trả về thông báo thành công
+        UI --> Actor: Hiển thị thông báo thành công
+    end
+end
+
+@endum
+@enduml

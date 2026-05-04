@@ -1,0 +1,56 @@
+@startuml
+autonumber
+skinparam style strictuml
+skinparam sequenceMessageAlign center
+
+actor "Giáo viên" as Actor
+boundary "Giao diện (UI)" as UI
+control "Hệ thống" as System
+database "DB" as DB
+
+title Sơ đồ tuần tự: Duyệt đăng ký thi
+
+== Truy cập danh sách ca thi ==
+Actor -> UI: Chọn "Quản lý ca thi"
+UI -> System: Yêu cầu lấy danh sách ca thi
+System -> DB: Truy vấn danh sách ca thi
+DB --> System: Trả kết quả
+System --> UI: Hiển thị danh sách ca thi
+
+== Kiểm tra trạng thái ca thi ==
+Actor -> UI: Chọn "Xem chi tiết" (ID)
+UI -> System: Gửi yêu cầu chi tiết
+System -> DB: Lấy trạng thái ca thi
+DB --> System: Trả về trạng thái
+
+alt trạng thái là "Sẵn sàng"
+    System --> UI: Hiển thị nút "Đăng ký thi"
+    UI --> Actor: Hiển thị giao diện có nút đăng ký
+    
+    Actor -> UI: Chọn "Đăng ký thi"
+    UI -> System: Yêu cầu danh sách học sinh đăng ký
+    System -> DB: Truy vấn danh sách đăng ký theo ca thi
+    DB --> System: Trả kết quả
+    System --> UI: Hiển thị danh sách & nút "Duyệt/Từ chối"
+    
+    == Xử lý phê duyệt ==
+    Actor -> UI: Chọn "Duyệt" hoặc "Từ chối"
+    UI -> UI: Hiển thị Popup xác nhận
+    
+    alt xác nhận (có)
+        Actor -> UI: Chọn "Có"
+        UI -> System: Gửi yêu cầu cập nhật trạng thái đăng ký
+        System -> DB: Lưu thay đổi vào CSDL (UPDATE)
+        DB --> System: Xác nhận thành công
+        System --> UI: Thông báo thành công
+        UI --> Actor: Hiển thị thông báo & cập nhật danh sách
+    else hủy (không)
+        Actor -> UI: Chọn "Không"
+        UI -> UI: Đóng Popup
+    end
+    
+else trạng thái khác
+    System --> UI: Chỉ hiển thị thông tin chi tiết
+    UI --> Actor: Hiển thị giao diện thông tin (không có quyền duyệt)
+end
+@enduml

@@ -1,0 +1,35 @@
+@startuml
+autonumber
+skinparam style strictuml
+skinparam sequenceMessageAlign center
+
+actor "Khách" as Actor
+boundary "Giao diện (UI)" as UI
+control "Hệ thống" as System
+database "DB" as DB
+
+title Sơ đồ tuần tự: Điều hướng Đăng nhập (Standard)
+
+== Khởi tạo ==
+Actor -> UI: Truy cập trang chủ
+UI -> System: Yêu cầu dữ liệu
+System -> DB: Truy vấn (Query)
+DB --> System: Trả kết quả
+System --> UI: Hiển thị trang chủ
+
+== Kiểm tra xác thực ==
+Actor -> UI: Click chức năng bất kỳ
+UI -> System: Kiểm tra trạng thái Login
+System --> UI: Phản hồi: Yêu cầu đăng nhập
+
+' Nhánh rẽ quyết định
+alt Chọn Đăng nhập
+    Actor -> UI: Click "Đăng nhập"
+    UI -> Actor: Điều hướng sang trang Login
+else Chọn Đóng
+    Actor -> UI: Click "Đóng"
+    UI -> UI: Thực hiện đóng Modal
+end
+
+@endum
+@enduml

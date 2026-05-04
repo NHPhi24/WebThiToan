@@ -1,0 +1,40 @@
+@startuml
+autonumber
+skinparam style strictuml
+skinparam sequenceMessageAlign center
+
+actor "Giáo viên" as Actor
+boundary "Giao diện (UI)" as UI
+control "Hệ thống" as System
+database "DB" as DB
+
+title Sơ đồ tuần tự: Đổi trạng thái ca thi
+
+== Truy cập danh sách ==
+Actor -> UI: Chọn "Quản lý ca thi"
+UI -> System: Yêu cầu lấy danh sách ca thi
+System -> DB: Truy vấn danh sách ca thi
+DB --> System: Trả kết quả dữ liệu
+System --> UI: Hiển thị danh sách ca thi
+UI --> Actor: Hiển thị giao diện danh sách
+
+== Thực hiện đổi trạng thái ==
+Actor -> UI: Chọn "Đổi trạng thái" (ID ca thi)
+UI -> System: Yêu cầu danh sách trạng thái hợp lệ
+System --> UI: Hiển thị các lựa chọn trạng thái mới
+
+Actor -> UI: Chọn trạng thái mới và nhấn "Lưu"
+UI -> System: Gửi yêu cầu cập nhật trạng thái
+System -> DB: Kiểm tra ID ca thi có tồn tại?
+DB --> System: Kết quả (Có/Không)
+
+alt ID tồn tại
+    System -> DB: Cập nhật trạng thái mới (UPDATE)
+    DB --> System: Xác nhận thành công
+    System --> UI: Thông báo đổi trạng thái thành công
+    UI --> Actor: Hiển thị thông báo & cập nhật lại UI
+else ID không tồn tại
+    System --> UI: Thông báo đổi trạng thái thất bại
+    UI --> Actor: Hiển thị lỗi dữ liệu
+end
+@enduml

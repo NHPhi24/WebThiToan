@@ -1,0 +1,38 @@
+@startuml
+autonumber
+
+actor "Giáo viên" as Actor
+boundary "Giao diện (UI)" as UI
+control "Hệ thống" as System
+database "DB" as DB
+
+title Sơ đồ tuần tự: Xuất file điểm thi
+
+== Truy cập chức năng ==
+Actor -> UI: Chọn "Quản lý kết quả thi"
+UI -> System: Yêu cầu lấy danh sách ca thi
+System -> DB: Truy vấn danh sách ca thi
+DB --> System: Trả kết quả dữ liệu
+System --> UI: Hiển thị nút chọn ca thi
+UI --> Actor: Giao diện chọn ca thi
+
+== Thực hiện xuất file ==
+Actor -> UI: Chọn ca thi cụ thể
+UI -> System: Gửi yêu cầu truy xuất (ID ca thi)
+System -> DB: Kiểm tra ca thi có tồn tại không?
+DB --> System: Kết quả kiểm tra
+
+alt đã tồn tại
+    System -> DB: Lấy danh sách điểm của học sinh đã nộp bài
+    DB --> System: Trả về danh sách điểm
+    System --> UI: Hiển thị danh sách điểm & nút "Xuất file"
+    
+    Actor -> UI: Chọn "Xuất file"
+    UI -> System: Yêu cầu kết xuất file dữ liệu
+    System -> System: Khởi tạo tệp dữ liệu (Excel/PDF)
+    System --> Actor: Hệ thống tải file điểm về máy
+else không tồn tại
+    System --> UI: Hiển thị trang trống
+    UI --> Actor: Hiển thị thông báo thất bại
+end
+@enduml

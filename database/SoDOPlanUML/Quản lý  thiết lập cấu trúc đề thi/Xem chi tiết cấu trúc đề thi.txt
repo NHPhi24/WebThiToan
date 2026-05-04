@@ -1,0 +1,48 @@
+@startuml
+autonumber
+skinparam style strictuml
+skinparam sequenceMessageAlign center
+
+' Định nghĩa các thành phần
+actor "Giáo viên" as Actor
+boundary "Giao diện (UI)" as UI
+control "Hệ thống" as System
+database "DB" as DB
+
+title Sơ đồ tuần tự: Xem chi tiết cấu trúc đề thi
+
+== Điều hướng chức năng ==
+Actor -> UI: Chọn "Quản lý đề thi"
+UI -> System: Yêu cầu danh sách đề thi
+System -> DB: Query danh sách đề thi
+DB --> System: Trả kết quả
+System --> UI: Hiển thị danh sách và nút thêm cấu trúc
+
+Actor -> UI: Chọn "Thêm đề thi"
+UI -> System: Yêu cầu Form và nút cấu trúc
+System --> UI: Hiển thị Form và nút cấu trúc đề thi
+
+Actor -> UI: Chọn "Cấu trúc đề thi"
+UI -> System: Yêu cầu danh sách cấu trúc
+System -> DB: Query danh sách cấu trúc
+DB --> System: Trả kết quả
+System --> UI: Hiển thị danh sách cấu trúc đề thi
+
+== Xem chi tiết ==
+Actor -> UI: Chọn "Xem chi tiết" (ID cấu trúc)
+UI -> System: Gửi yêu cầu xem chi tiết
+System -> DB: Kiểm tra ID cấu trúc có tồn tại không?
+DB --> System: Kết quả (Có/Không)
+
+alt đã tồn tại
+    System -> DB: Truy vấn thông tin chi tiết cấu trúc
+    DB --> System: Trả về dữ liệu chi tiết
+    System --> UI: Trả về dữ liệu hiển thị Modal
+    UI --> Actor: Hiển thị Modal thông tin chi tiết
+else chưa tồn tại
+    System --> UI: Trả về thông báo lỗi
+    UI --> Actor: Hiển thị thông báo thất bại
+end
+
+@endum
+@enduml

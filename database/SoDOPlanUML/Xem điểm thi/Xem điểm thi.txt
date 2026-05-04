@@ -1,0 +1,48 @@
+@startuml
+autonumber
+skinparam style strictuml
+skinparam sequenceMessageAlign center
+
+actor "Học sinh" as Actor
+boundary "Giao diện (UI)" as UI
+control "Hệ thống" as System
+database "DB" as DB
+
+title Sơ đồ tuần tự: Xem điểm thi
+
+Actor -> UI: Chọn "Quản lý ca thi"
+UI -> System: Yêu cầu lấy danh sách ca thi
+System -> DB: Truy vấn danh sách
+DB --> System: Trả kết quả dữ liệu
+System --> UI: Hiển thị danh sách ca thi
+UI --> Actor: Giao diện danh sách ca thi
+
+Actor -> UI: Chọn "Xem chi tiết" ca thi
+UI -> System: Gửi yêu cầu chi tiết (ID ca thi)
+System -> DB: Kiểm tra ca thi ở trạng thái đã kết thúc?
+DB --> System: Trả về trạng thái (đã kết thúc / khác)
+
+alt đã kết thúc
+    System --> UI: Hiển thị nút "Xem kết quả"
+    Actor -> UI: Chọn "Xem kết quả"
+    UI -> System: Yêu cầu chuyển tới trang quản lý kết quả thi
+    System --> UI: Hiển thị trang quản lý kết quả thi
+else khác
+    System --> UI: Hiển thị thông tin chi tiết ca thi (không có nút xem kết quả)
+    UI --> Actor: Thông báo: Ca thi chưa kết thúc
+end
+
+== Cách 2: Xem trực tiếp từ Quản lý kết quả thi ==
+Actor -> UI: Chọn "Quản lý kết quả thi"
+UI -> System: Yêu cầu lấy dữ liệu kết quả cá nhân
+System -> DB: Kiểm tra kết quả thi của học sinh
+DB --> System: Trả về dữ liệu (có kết quả / không có kết quả)
+
+alt có kết quả
+    System --> UI: Hiển thị danh sách kết quả thi của học sinh
+    UI --> Actor: Giao diện chi tiết điểm số
+else không có kết quả
+    System --> UI: Hiển thị trang trống
+    UI --> Actor: Thông báo: Chưa có dữ liệu kết quả thi
+end
+@enduml

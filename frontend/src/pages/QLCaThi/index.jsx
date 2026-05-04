@@ -10,7 +10,7 @@ const TeacherName = ({ teacherId }) => {
 import { Edit, Trash, Eye } from 'lucide-react';
 import AddExamSessionModal from './AddExamSessionModal';
 import api from '../../services/api';
-import { PlusOutlined } from '@ant-design/icons';
+import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import ExamSessionDetail from './ExamSessionDetail';
 
 // Lấy user hiện tại từ localStorage
@@ -269,7 +269,10 @@ const QLCaThi = ({ user, isLoggedIn }) => {
   const currentUser = getCurrentUser();
   return (
     <div>
-      <h1>Quản lý ca thi</h1>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <h1>Quản lý ca thi</h1>
+        <ReloadOutlined size={15} onClick={fetchData} />
+      </div>
       {/* Hiển thị danh sách ca thi đã đăng ký của học sinh */}
       {user?.role === 'STUDENT' && registeredSessions.length > 0 && (
         <div style={{ marginBottom: 24 }}>

@@ -1,0 +1,54 @@
+@startuml
+autonumber
+skinparam style strictuml
+skinparam sequenceMessageAlign center
+
+actor "Giáo viên" as Actor
+boundary "Giao diện (UI)" as UI
+control "Hệ thống" as System
+database "DB" as DB
+
+title Sơ đồ tuần tự: Nhập hàng loạt học sinh (Import)
+
+== Truy cập chức năng ==
+Actor -> UI: Chọn "Quản lý học sinh"
+UI -> System: Yêu cầu lấy danh sách học sinh
+System -> DB: Truy vấn danh sách
+DB --> System: Trả kết quả dữ liệu
+System --> UI: Hiển thị danh sách
+UI --> Actor: Giao diện quản lý học sinh
+
+== Thực hiện Import ==
+Actor -> UI: Ấn nút "Import"
+UI -> System: Yêu cầu Form Import
+System --> UI: Hiển thị modal import (có nút tải file mẫu và chọn file)
+
+alt Tải file mẫu
+    Actor -> UI: Chọn tải file mẫu Excel
+    UI -> System: Yêu cầu file mẫu
+    System --> Actor: Tải mẫu excel về máy để nhập
+end
+
+Actor -> UI: Chọn file excel từ máy tính
+UI -> System: Gửi file dữ liệu
+System -> System: Kiểm tra đúng mẫu không?
+
+alt file không hợp lệ
+    System --> UI: Hiển thị thông báo thất bại
+    UI --> Actor: Thông báo: File không đúng định dạng
+else file hợp lệ
+    System -> System: Đọc file và hiển thị bảng dữ liệu
+    System -> DB: Kiểm tra tên đăng nhập và email đã tồn tại chưa?
+    DB --> System: Kết quả kiểm tra (Đã tồn tại / Chưa tồn tại)
+    
+    alt đã tồn tại
+        System --> UI: Hiển thị thông báo thất bại
+        UI --> Actor: Thông báo: Dữ liệu đã tồn tại
+    else chưa tồn tại
+        System -> DB: Lưu vào CSDL
+        DB --> System: Xác nhận lưu thành công
+        System --> UI: Hiển thị thông báo thành công
+        UI --> Actor: Thông báo: Nhập học sinh hàng loạt thành công
+    end
+end
+@enduml

@@ -1,0 +1,45 @@
+@startuml
+autonumber
+skinparam style strictuml
+skinparam sequenceMessageAlign center
+
+' Định nghĩa các thành phần
+actor "Giáo viên" as Actor
+boundary "Giao diện (UI)" as UI
+control "Hệ thống" as System
+database "DB" as DB
+
+title Sơ đồ tuần tự: Thêm đề thi tự động
+
+== Điều hướng chức năng ==
+Actor -> UI: Chọn "Quản lý đề thi"
+UI -> System: Yêu cầu lấy danh sách đề thi
+System -> DB: Query danh sách đề thi
+DB --> System: Trả kết quả
+System --> UI: Hiển thị danh sách đề thi
+UI --> Actor: Hiển thị giao diện danh sách
+
+== Khởi tạo thêm mới ==
+Actor -> UI: Chọn "Thêm đề thi"
+UI -> System: Yêu cầu Form thêm mới
+System --> UI: Hiển thị Form nhập liệu
+UI --> Actor: Hiển thị Form (Nhập tên, mã đề, cấu trúc...)
+
+== Xử lý tạo đề tự động ==
+Actor -> UI: Nhập thông tin và nhấn "Lưu"
+UI -> System: Gửi thông tin đề thi mới
+System -> DB: Kiểm tra tên/mã đề thi đã tồn tại?
+DB --> System: Kết quả (Đã tồn tại/Không tồn tại)
+
+alt không tồn tại
+    System -> System: Thực hiện thuật toán tạo đề thi tự động
+    note right: Lấy câu hỏi ngẫu nhiên dựa trên cấu trúc đề
+    System -> DB: Lưu thông tin đề thi & danh sách câu hỏi vào CSDL
+    DB --> System: Xác nhận lưu thành công
+    System --> UI: Thông báo thành công
+    UI --> Actor: Hiển thị thông báo thành công
+else đã tồn tại
+    System --> UI: Thông báo lỗi (Mã đề đã tồn tại)
+    UI --> Actor: Hiển thị thông báo thất bại
+end
+@enduml

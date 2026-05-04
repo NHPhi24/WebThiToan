@@ -1,0 +1,53 @@
+@startuml
+autonumber
+skinparam style strictuml
+skinparam sequenceMessageAlign center
+
+actor "Học sinh" as Actor
+boundary "Giao diện (UI)" as UI
+control "Hệ thống" as System
+database "DB" as DB
+
+title Sơ đồ tuần tự: Hủy đăng ký thi
+
+== Bước 1: Chọn ca thi đã đăng ký ==
+Actor -> UI: Chọn "Quản lý ca thi"
+UI -> System: Yêu cầu lấy danh sách ca thi
+System -> DB: Truy vấn danh sách ca thi
+DB --> System: Trả kết quả dữ liệu
+System --> UI: Hiển thị danh sách ca thi
+UI --> Actor: Giao diện danh sách ca thi
+
+== Bước 2: Kiểm tra điều kiện hủy ==
+Actor -> UI: Chọn "Xem chi tiết" ca thi đã đăng ký
+UI -> System: Gửi yêu cầu chi tiết (ID ca thi)
+System -> DB: Kiểm tra trạng thái ca thi (sẵn sàng/khác)
+DB --> System: Trả về trạng thái
+
+alt sẵn sàng
+    System --> UI: Hiển thị nút "Hủy đăng ký thi"
+    UI --> Actor: Giao diện chi tiết kèm nút hủy đăng ký
+    
+    == Bước 3: Thực hiện hủy đăng ký ==
+    Actor -> UI: Nhấn nút "Hủy đăng ký thi"
+    UI -> System: Yêu cầu xác nhận hủy
+    System --> UI: Hiển thị Modal xác nhận hủy đăng ký
+    UI --> Actor: Popup xác nhận (hủy đăng ký / đóng)
+
+    alt hủy đăng ký
+        Actor -> UI: Chọn "hủy đăng ký"
+        UI -> System: Gửi yêu cầu xóa đăng ký
+        System -> DB: Xóa dữ liệu đăng ký trong CSDL
+        DB --> System: Xác nhận xóa thành công
+        System --> UI: Hiển thị thông báo thành công
+        UI --> Actor: Thông báo: Hủy đăng ký thi thành công
+    else đóng
+        Actor -> UI: Chọn "đóng"
+        UI -> UI: Đóng modal
+    end
+
+else khác
+    System --> UI: Xem chi tiết thông tin (Không có nút hủy)
+    UI --> Actor: Hiển thị thông tin ca thi (Không cho phép hủy)
+end
+@enduml

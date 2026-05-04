@@ -1,0 +1,38 @@
+@startuml
+autonumber
+skinparam style strictuml
+skinparam sequenceMessageAlign center
+
+actor "Giáo viên" as Actor
+boundary "Giao diện (UI)" as UI
+control "Hệ thống" as System
+database "DB" as DB
+
+title Sơ đồ tuần tự: Xóa học sinh
+
+== Truy cập danh sách ==
+Actor -> UI: Chọn quản lý học sinh
+UI -> System: Yêu cầu lấy danh sách học sinh
+System -> DB: Truy vấn danh sách
+DB --> System: Trả kết quả dữ liệu
+System --> UI: Hiển thị danh sách
+UI --> Actor: Giao diện danh sách học sinh
+
+== Thực hiện xóa ==
+Actor -> UI: Chọn xóa học sinh
+UI -> System: Yêu cầu xác nhận xóa
+System --> UI: Hiển thị popup xác nhận xóa
+UI --> Actor: Hiển thị Popup (Có/Không)
+
+alt có
+    Actor -> UI: Chọn "có"
+    UI -> System: Gửi yêu cầu xóa học sinh
+    System -> DB: Xóa khỏi CSDL (DELETE)
+    DB --> System: Xác nhận xóa thành công
+    System --> UI: Hiển thị thông báo thành công
+    UI --> Actor: Thông báo thành công & cập nhật UI
+else không
+    Actor -> UI: Chọn "không"
+    UI -> UI: Đóng popup
+end
+@enduml
