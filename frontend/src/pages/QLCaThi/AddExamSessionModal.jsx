@@ -84,7 +84,7 @@ const AddExamSessionModal = ({ open, onCancel, onOk, loading, user, editData }) 
         }
       >
         <Form.Item label="Tên ca thi" name="session_name" rules={[{ required: true, message: 'Nhập tên ca thi' }]}>
-          <Input />
+          <Input placeholder="Nhập tên ca thi" />
         </Form.Item>
         <Form.Item label="Thời gian bắt đầu" name="start_time" rules={[{ required: true, message: 'Chọn thời gian' }]}>
           <DatePicker showTime format="YYYY-MM-DD HH:mm" style={{ width: '100%' }} />
@@ -99,6 +99,7 @@ const AddExamSessionModal = ({ open, onCancel, onOk, loading, user, editData }) 
             showSearch
             filterOption={(input, option) => option.label.toLowerCase().includes(input.toLowerCase())}
             placeholder="Chọn trạng thái"
+            disabled={!isEdit} // Disable khi thêm mới, chỉ cho phép chỉnh khi sửa
           />
         </Form.Item>
         <Form.Item label="Giáo viên tạo">

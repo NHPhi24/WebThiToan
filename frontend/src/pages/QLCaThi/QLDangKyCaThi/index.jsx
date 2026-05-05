@@ -10,6 +10,7 @@ import DangKyCaThi from './DangKyCaThi';
 import AddStudentToSessionModal from './AddStudentToSessionModal';
 import { Modal, Descriptions } from 'antd';
 import { Search } from 'lucide-react';
+import { ReloadOutlined } from '@ant-design/icons';
 
 const getCurrentUser = () => {
   try {
@@ -195,7 +196,10 @@ const QLDangKyCaThi = () => {
 
   return (
     <div>
-      <h2>Danh sách đăng ký ca thi: {sessionName || sessionId}</h2>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <h2>Danh sách đăng ký ca thi: {sessionName || sessionId}</h2>
+        <ReloadOutlined onClick={fetchData} title="Tải lại dữ liệu" />
+      </div>
       <div style={{ marginBottom: 16, display: 'flex', gap: 12, alignItems: 'center' }}>
         <Button onClick={() => navigate(-1)}>Quay lại</Button>
 

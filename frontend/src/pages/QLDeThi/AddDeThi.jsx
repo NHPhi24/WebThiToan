@@ -34,9 +34,9 @@ const AddDeThi = ({ onSubmit, onOpenStructure, loading, autoMode }) => {
       <Form.Item label="Mã đề thi" name="exam_code" rules={[{ required: true, message: 'Vui lòng nhập mã đề thi' }]}>
         <Input placeholder="Nhập mã đề thi" />
       </Form.Item>
-      <Form.Item label="Template ID" name="template_id" rules={[{ required: true, message: 'Vui lòng chọn Template ID' }]}>
+      <Form.Item label="Cấu trúc đề thi" name="template_id" rules={[{ required: true, message: 'Vui lòng chọn Template ID' }]}>
         <Select
-          placeholder="Chọn Template ID"
+          placeholder="Chọn cấu trúc đề thi"
           options={templates.map((t) => ({ value: t.id, label: `${t.id} - ${t.template_name} (${t.basic_percent}% - ${t.advanced_percent}%)` }))}
           showSearch
           filterOption={(input, option) => option.label.toLowerCase().includes(input.toLowerCase())}

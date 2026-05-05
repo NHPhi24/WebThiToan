@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Form, Input, Button, Card, message } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
@@ -7,6 +7,14 @@ import api from '../../services/api';
 const Login = ({ setIsLoggedIn, setUser }) => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  // Nếu đã đăng nhập thì chuyển về trang chủ
+  useEffect(() => {
+    const user = localStorage.getItem('user');
+    if (user) {
+      navigate('/');
+    }
+  }, [navigate]);
 
   const onFinish = async (values) => {
     setLoading(true);
@@ -22,7 +30,7 @@ const Login = ({ setIsLoggedIn, setUser }) => {
         setIsLoggedIn(true);
         localStorage.setItem('user', JSON.stringify({ ...user, token }));
         message.success('Đăng nhập thành công!');
-        navigate('/'); // Về trang chủ
+        setTimeout(() => navigate('/'), 300); // Về trang chủ sau khi hiển thị message
       } else {
         message.error('Tên đăng nhập hoặc mật khẩu không đúng');
       }

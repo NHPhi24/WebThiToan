@@ -4,6 +4,7 @@ import { Card, Button, Radio, Progress, message } from 'antd';
 import participantApi from '../../services/participantApi';
 import api from '../../services/api';
 import MathText from '../../utils/MathText';
+import { ReloadOutlined } from '@ant-design/icons';
 
 const getCurrentUser = () => {
   try {
@@ -71,7 +72,14 @@ const ThucHienBaiThi = () => {
           }
           setAnswers(existedResult.answers_log || {});
           setCurrent(0);
-          setExamCode(''); // Nếu muốn lấy lại mã đề, cần thêm api lấy exam_code theo exam_id
+          // Lấy lại mã đề từ danh sách đề
+          try {
+            const allExams = await api.getAllExams();
+            const foundExam = (allExams.data || []).find((e) => e.id === existedResult.exam_id);
+            setExamCode(foundExam ? foundExam.exam_code : '');
+          } catch {
+            setExamCode('');
+          }
         } else {
           // Chưa có: random mã đề mới và tạo bản ghi mới
           const examRes = await api.startExamSession(sessionId);
@@ -112,7 +120,8 @@ const ThucHienBaiThi = () => {
   // Đếm ngược thời gian
   useEffect(() => {
     if (!session) return;
-    const start = new Date(session.start_time).getTime();
+    // Ưu tiên lấy manual_status_time (thời điểm thực tế ca thi bắt đầu), nếu không có thì lấy start_time
+    const start = session.manual_status_time ? new Date(session.manual_status_time).getTime() : new Date(session.start_time).getTime();
     const duration = session.duration ? session.duration * 60 * 1000 : 3600 * 1000; // ms
     const end = start + duration;
     const now = Date.now();
@@ -163,6 +172,13 @@ const ThucHienBaiThi = () => {
       });
     } catch {}
   };
+  const reloadExam = () => {
+    setInitDone(false);
+    setLoading(true);
+    setTimeout(() => {
+      window.location.reload();
+    }, 100);
+  };
 
   const handleSubmit = async () => {
     if (submitting) return;
@@ -207,7 +223,10 @@ const ThucHienBaiThi = () => {
     <div style={{ display: 'flex', alignItems: 'flex-start', position: 'relative' }}>
       {/* Main content */}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <h2>{session.session_name}</h2>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <h2>{session.session_name}</h2>
+          <ReloadOutlined onClick={reloadExam} title="Tải lại bài thi" />
+        </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
           <div>
             Mã đề: <b>{examCode}</b>
@@ -281,7 +300,8 @@ const ThucHienBaiThi = () => {
         <div style={{ fontWeight: 600, marginBottom: 8 }}>Danh sách câu hỏi</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
           {questions.map((ques, idx) => {
-            const answered = answers[ques.id] !== '' && answers[ques.id] !== undefined && answers[ques.id] !== null;
+            // Chỉ tô xanh khi đã chọn đáp án (A/B/C/D), không tô nếu undefined/null/""
+            const answered = ['A', 'B', 'C', 'D'].includes(answers[ques.id]);
             const isCurrent = idx === current;
             return (
               <button

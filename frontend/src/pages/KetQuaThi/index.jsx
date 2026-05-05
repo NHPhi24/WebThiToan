@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Table, Tag, Spin, Button, Select } from 'antd';
 import SearchInput from '../../components/SearchInput';
 import { useNavigate } from 'react-router-dom';
+import { ReloadOutlined } from '@ant-design/icons';
 import api from '../../services/api';
 import * as XLSX from 'xlsx';
 
@@ -15,9 +16,9 @@ const KetQuaThi = () => {
   const [users, setUsers] = useState([]);
   const [search, setSearch] = useState('');
   const navigate = useNavigate();
-  useEffect(() => {
+  // Hàm fetch lại dữ liệu
+  const fetchData = () => {
     setLoading(true);
-    // Lấy user từ localStorage
     let u = null;
     try {
       u = JSON.parse(localStorage.getItem('user') || 'null');
@@ -25,7 +26,6 @@ const KetQuaThi = () => {
     setUser(u);
     const role = u?.role?.toLowerCase();
     if (u && role === 'student') {
-      // Học sinh chỉ gọi API lấy kết quả của mình
       Promise.all([api.getExamResultsByStudent(u.id), api.getAllExams(), api.getAllExamSessions(), api.getAllUsers()])
         .then(([resultsRes, examsRes, sessionsRes, usersRes]) => {
           const allResults = Array.isArray(resultsRes) ? resultsRes : resultsRes?.data || [];
@@ -36,7 +36,6 @@ const KetQuaThi = () => {
         })
         .finally(() => setLoading(false));
     } else {
-      // Giáo viên/admin xem tất cả kết quả
       Promise.all([api.getAllExamResults(), api.getAllExams(), api.getAllExamSessions(), api.getAllUsers()])
         .then(([resultsRes, examsRes, sessionsRes, usersRes]) => {
           const allResults = Array.isArray(resultsRes) ? resultsRes : resultsRes?.data || [];
@@ -47,6 +46,10 @@ const KetQuaThi = () => {
         })
         .finally(() => setLoading(false));
     }
+  };
+
+  useEffect(() => {
+    fetchData();
   }, []);
 
   const columns = [
@@ -174,10 +177,11 @@ const KetQuaThi = () => {
 
   return (
     <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
         <h2>Kết quả thi</h2>
-        <Button onClick={() => navigate(-1)}>Quay lại</Button>
+        <ReloadOutlined onClick={fetchData} title="Tải lại dữ liệu" />
       </div>
+
       {/* Nếu không phải học sinh thì mới cho chọn ca thi */}
       {role === 'teacher' || role === 'admin' ? (
         <div style={{ maxWidth: 400, marginBottom: 16 }}>
@@ -192,12 +196,16 @@ const KetQuaThi = () => {
           />
         </div>
       ) : null}
-      <div style={{ maxWidth: 400 }}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <Button onClick={() => navigate(-1)}>Quay lại</Button>
+        <Button type="primary" onClick={exportToExcel}>
+          Xuất file điểm
+        </Button>
         <SearchInput
           placeholder="Tìm kiếm học sinh, mã đề, ca thi..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={{ width: 320, marginBottom: 8 }}
+          style={{ width: 320 }}
         />
       </div>
       <Spin spinning={loading}>
@@ -206,9 +214,6 @@ const KetQuaThi = () => {
             <div style={{ marginBottom: 40 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h3 style={{ color: '#1976d2' }}>{selectedSessionObj.session_name}</h3>
-                <Button type="primary" onClick={exportToExcel}>
-                  Xuất file điểm
-                </Button>
               </div>
               <Table
                 columns={columns}
@@ -221,9 +226,6 @@ const KetQuaThi = () => {
           )
         ) : (
           <>
-            <Button type="primary" onClick={exportToExcel}>
-              Xuất file điểm
-            </Button>
             <Table
               columns={columns}
               dataSource={filteredResults}

@@ -7,7 +7,7 @@ import useNotify from '../../hooks/useNotify';
 import api from '../../services/api';
 // Header tiếng Việt cho file mẫu (có ID giáo viên)
 const headers = [
-  'ID giáo viên', // teacher_id
+  // 'ID giáo viên', // teacher_id
   'Nội dung câu hỏi', // content
   'Đáp án A', // ans_a
   'Đáp án B', // ans_b
@@ -20,7 +20,7 @@ const headers = [
 
 // Map trường tiếng Việt về trường DB (có ID giáo viên)
 const fieldMap = {
-  'ID giáo viên': 'teacher_id',
+  // 'ID giáo viên': 'teacher_id',
   'Nội dung câu hỏi': 'content',
   'Đáp án A': 'ans_a',
   'Đáp án B': 'ans_b',
@@ -50,8 +50,8 @@ const ImportQuestionModal = ({ visible, onClose, onImport }) => {
   const handleExportTemplate = () => {
     const ws = XLSX.utils.aoa_to_sheet([headers]);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'QuestionsTemplate');
-    XLSX.writeFile(wb, 'questions_template.xlsx');
+    XLSX.utils.book_append_sheet(wb, ws, 'Mẫu Câu hỏi');
+    XLSX.writeFile(wb, 'Cấu_trúc_mẫu_câu_hỏi.xlsx');
   };
 
   // Hàm tự động format các trường LaTeX: chuyển \( ... \) thành $...$
