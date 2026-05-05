@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Table, message, Modal, Button } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
+import SearchInput from '../../components/SearchInput';
+import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import OperationColumn from '../../components/ActionIcons';
 import AddDeThi from './AddDeThi';
 import api from '../../services/api';
@@ -19,6 +20,7 @@ const QLDeThi = () => {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [addModalLoading, setAddModalLoading] = useState(false);
   const [structureModalOpen, setStructureModalOpen] = useState(false);
+  const [search, setSearch] = useState('');
 
   const fetchData = async () => {
     setLoading(true);
@@ -83,6 +85,13 @@ const QLDeThi = () => {
     }
   };
 
+  // Lọc dữ liệu theo mã đề hoặc tên template
+  const filteredData = data.filter((row) => {
+    const q = search.toLowerCase();
+    const template = templates.find((t) => t.id === row.template_id);
+    return row.exam_code?.toLowerCase().includes(q) || (template?.template_name?.toLowerCase().includes(q) ?? false);
+  });
+
   const columns = [
     { title: 'Mã đề thi', dataIndex: 'exam_code', key: 'exam_code' },
     {
@@ -121,12 +130,22 @@ const QLDeThi = () => {
 
   return (
     <div>
-      <h1>Quản lý đề thi</h1>
-      <Button type="primary" onClick={handleAddNew} style={{ marginBottom: 16 }} icon={<PlusOutlined />}>
-        Thêm đề thi
-      </Button>
-
-      <Table columns={columns} dataSource={data} loading={loading} rowKey="id" pagination={{ pageSize: 10 }} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <h1>Quản lý đề thi</h1>
+        <ReloadOutlined onClick={fetchData} />
+      </div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        <Button type="primary" onClick={handleAddNew} icon={<PlusOutlined />}>
+          Thêm đề thi
+        </Button>
+        <SearchInput
+          placeholder="Tìm kiếm mã đề hoặc tên cấu trúc..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{ width: 300 }}
+        />
+      </div>
+      <Table columns={columns} dataSource={filteredData} loading={loading} rowKey="id" pagination={{ pageSize: 10 }} />
       <Modal
         open={modalOpen}
         onCancel={() => setModalOpen(false)}

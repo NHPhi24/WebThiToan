@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Table, message, Modal, Form, Input, DatePicker, InputNumber, Select, Button, Tooltip, Popconfirm } from 'antd';
+import SearchInput from '../../components/SearchInput';
 import useTeacherFullName from '../../hooks/useTeacherFullName';
-
 // Component con để dùng hook đúng chuẩn
 const TeacherName = ({ teacherId }) => {
   const { fullName, loading } = useTeacherFullName(teacherId);
   return loading ? '...' : fullName;
 };
-import { Edit, Trash, Eye } from 'lucide-react';
+import { Edit, Trash, Eye, Search } from 'lucide-react';
 import AddExamSessionModal from './AddExamSessionModal';
 import api from '../../services/api';
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
@@ -43,6 +43,7 @@ const QLCaThi = ({ user, isLoggedIn }) => {
   const [modalLoading, setModalLoading] = useState(false);
   const [form] = Form.useForm();
   const [examOptions, setExamOptions] = useState([]);
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     api.getAllExams().then((res) => {
@@ -182,6 +183,9 @@ const QLCaThi = ({ user, isLoggedIn }) => {
     };
     fetchRegistered();
   }, []);
+  // Lọc dữ liệu theo tên ca thi
+  const filteredData = data.filter((row) => row.session_name?.toLowerCase().includes(search.toLowerCase()));
+
   const columns = [
     {
       title: 'Tên ca thi',
@@ -269,9 +273,19 @@ const QLCaThi = ({ user, isLoggedIn }) => {
   const currentUser = getCurrentUser();
   return (
     <div>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        <h1>Quản lý ca thi</h1>
-        <ReloadOutlined size={15} onClick={fetchData} />
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <h1>Quản lý ca thi</h1>
+          <ReloadOutlined size={15} onClick={fetchData} />
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16 }}>
+        {canEdit && (
+          <Button type="primary" onClick={handleAddNew} icon={<PlusOutlined />}>
+            Thêm ca thi
+          </Button>
+        )}
+        <SearchInput placeholder="Tìm kiếm theo tên ca thi..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: 250 }} />
       </div>
       {/* Hiển thị danh sách ca thi đã đăng ký của học sinh */}
       {user?.role === 'STUDENT' && registeredSessions.length > 0 && (
@@ -312,12 +326,8 @@ const QLCaThi = ({ user, isLoggedIn }) => {
           />
         </div>
       )}
-      {canEdit && (
-        <Button type="primary" onClick={handleAddNew} style={{ marginBottom: 16 }} icon={<PlusOutlined />}>
-          Thêm ca thi
-        </Button>
-      )}
-      <Table columns={columns} dataSource={data} loading={loading} rowKey="id" pagination={{ pageSize: 10 }} />
+
+      <Table columns={columns} dataSource={filteredData} loading={loading} rowKey="id" pagination={{ pageSize: 10 }} />
       {modalOpen && modalMode !== 'view' && (
         <AddExamSessionModal
           open={modalOpen}

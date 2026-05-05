@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Table, Tag, Spin, Button, Select } from 'antd';
+import SearchInput from '../../components/SearchInput';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import * as XLSX from 'xlsx';
@@ -12,6 +13,7 @@ const KetQuaThi = () => {
   const [sessions, setSessions] = useState([]);
   const [selectedSession, setSelectedSession] = useState(null);
   const [users, setUsers] = useState([]);
+  const [search, setSearch] = useState('');
   const navigate = useNavigate();
   useEffect(() => {
     setLoading(true);
@@ -129,6 +131,20 @@ const KetQuaThi = () => {
     selectedSessionObj = sessions.find((s) => s.id === selectedSession);
     filteredResults = selectedSession ? data.filter((r) => r.session_id === selectedSession) : [];
   }
+  // Lọc theo search
+  if (search) {
+    const q = search.toLowerCase();
+    filteredResults = filteredResults.filter((r) => {
+      const student = users.find((u) => u.id === r.student_id);
+      const exam = exams.find((e) => e.id === r.exam_id);
+      const session = sessions.find((s) => s.id === r.session_id);
+      return (
+        (student?.full_name?.toLowerCase().includes(q) ?? false) ||
+        (exam?.exam_code?.toLowerCase().includes(q) ?? false) ||
+        (session?.session_name?.toLowerCase().includes(q) ?? false)
+      );
+    });
+  }
 
   // Hàm xuất file Excel
   const exportToExcel = () => {
@@ -164,7 +180,7 @@ const KetQuaThi = () => {
       </div>
       {/* Nếu không phải học sinh thì mới cho chọn ca thi */}
       {role === 'teacher' || role === 'admin' ? (
-        <div style={{ margin: '16px 0', maxWidth: 400 }}>
+        <div style={{ maxWidth: 400, marginBottom: 16 }}>
           <span>Chọn ca thi: </span>
           <Select
             style={{ minWidth: 200 }}
@@ -176,6 +192,14 @@ const KetQuaThi = () => {
           />
         </div>
       ) : null}
+      <div style={{ maxWidth: 400 }}>
+        <SearchInput
+          placeholder="Tìm kiếm học sinh, mã đề, ca thi..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{ width: 320, marginBottom: 8 }}
+        />
+      </div>
       <Spin spinning={loading}>
         {role === 'teacher' || role === 'admin' ? (
           selectedSessionObj && (

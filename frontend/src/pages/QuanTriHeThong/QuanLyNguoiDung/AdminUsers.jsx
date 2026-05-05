@@ -1,7 +1,8 @@
 // Đã di chuyển từ ../AdminUsers.jsx
 import React, { useEffect, useState } from 'react';
-import { Card, Table, Button, Modal, Form, Input, Select, message, Space } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
+import { Card, Table, Button, Modal, Form, Input, Select, message, Space, Spin } from 'antd';
+import SearchInput from '../../../components/SearchInput';
+import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import ActionIcons from '../../../components/ActionIcons';
 import api from '../../../services/api';
 import { ROLES } from '../../../constants/constant.jsx';
@@ -16,6 +17,7 @@ const AdminUsers = () => {
   const [viewModalVisible, setViewModalVisible] = useState(false);
   const [viewUser, setViewUser] = useState(null);
   const [importModalVisible, setImportModalVisible] = useState(false);
+  const [search, setSearch] = useState('');
 
   // Lấy user hiện tại từ localStorage
   const getCurrentUser = () => {
@@ -153,21 +155,33 @@ const AdminUsers = () => {
     },
   ];
 
+  // Lọc dữ liệu theo tên đăng nhập, họ tên hoặc email
+  const filteredUsers = users.filter((user) => {
+    const q = search.toLowerCase();
+    return user.username?.toLowerCase().includes(q) || user.full_name?.toLowerCase().includes(q) || user.email?.toLowerCase().includes(q);
+  });
+
   return (
     <div>
-      <Card
-        title={isGiaoVien ? 'Quản lý học sinh' : 'Quản lý người dùng'}
-        extra={
-          <div style={{ display: 'flex', gap: 8 }}>
-            <Button onClick={() => setImportModalVisible(true)}>Import</Button>
-            <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
-              {isGiaoVien ? 'Thêm học sinh' : 'Thêm người dùng'}
-            </Button>
-          </div>
-        }
-      >
-        <Table rowKey="id" loading={loading} dataSource={users} columns={columns} pagination={{ pageSize: 8 }} />
-      </Card>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <h1>{isGiaoVien ? 'Quản lý học sinh' : 'Quản lý người dùng'}</h1>
+        <ReloadOutlined onClick={fetchUsers} />
+      </div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
+          {isGiaoVien ? 'Thêm học sinh' : 'Thêm người dùng'}
+        </Button>
+        <SearchInput
+          placeholder="Tìm kiếm tên, email hoặc tên đăng nhập..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{ width: 260 }}
+        />
+      </div>
+
+      <Spin spinning={loading}>
+        <Table rowKey="id" loading={loading} dataSource={filteredUsers} columns={columns} pagination={{ pageSize: 8 }} />
+      </Spin>
 
       <Modal
         title={editingUser ? 'Chỉnh sửa' : 'Tạo mới' + (isGiaoVien ? ' học sinh' : ' người dùng')}

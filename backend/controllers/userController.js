@@ -95,6 +95,7 @@ const getAllStudents = async (req, res) => {
   }
 };
 const db = require('../data/db');
+const jwt = require('jsonwebtoken');
 const User = require('../entities/user');
 const { createAuditLog } = require('../data/auditLog');
 
@@ -234,22 +235,34 @@ const deleteUser = async (req, res) => {
 
 const loginUser = async (req, res) => {
   const { username, password } = req.body;
-
   try {
     const result = await db.query(
       'SELECT id, username, full_name, email, role, created_by, profile_info, created_at FROM users WHERE username = $1 AND password = $2',
       [username, password],
     );
-
     if (result.rowCount === 0) {
       return res.status(401).json({ error: 'Invalid username or password' });
     }
-
-    res.json(result.rows[0]);
+    const user = result.rows[0];
+    // Tạo JWT token, chỉ có hiệu lực trong 3 giờ
+    const token = jwt.sign({ id: user.id, username: user.username, role: user.role }, process.env.JWT_SECRET || 'secret-key', { expiresIn: '3h' });
+    res.json({ user, token });
   } catch (error) {
     console.error('loginUser error:', error);
     res.status(500).json({ error: 'Failed to login' });
   }
+};
+
+// Middleware kiểm tra JWT token
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'No token provided' });
+  jwt.verify(token, process.env.JWT_SECRET || 'secret-key', (err, user) => {
+    if (err) return res.status(403).json({ error: 'Invalid or expired token' });
+    req.user = user;
+    next();
+  });
 };
 
 module.exports = {
@@ -262,4 +275,5 @@ module.exports = {
   getAllStudents,
   changePassword,
   checkDuplicateUsers,
+  authenticateToken,
 };

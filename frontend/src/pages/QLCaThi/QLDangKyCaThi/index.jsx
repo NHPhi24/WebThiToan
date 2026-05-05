@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Table, message, Tag, Button, Popconfirm, Tooltip } from 'antd';
+import SearchInput from '../../../components/SearchInput';
 import ActionIcons from '../../../components/ActionIcons';
 import api from '../../../services/api';
 import participantApi from '../../../services/participantApi';
@@ -8,6 +9,7 @@ import { EXAM_SESSION_REGISTER_STATUS } from '../../../constants/constant';
 import DangKyCaThi from './DangKyCaThi';
 import AddStudentToSessionModal from './AddStudentToSessionModal';
 import { Modal, Descriptions } from 'antd';
+import { Search } from 'lucide-react';
 
 const getCurrentUser = () => {
   try {
@@ -24,6 +26,7 @@ const QLDangKyCaThi = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [sessionName, setSessionName] = useState('');
   const [addStudentModalOpen, setAddStudentModalOpen] = useState(false);
+  const [search, setSearch] = useState('');
   const navigate = useNavigate();
 
   const fetchSessionName = async () => {
@@ -187,11 +190,15 @@ const QLDangKyCaThi = () => {
     },
   ];
 
+  // Lọc dữ liệu theo tên người đăng ký
+  const filteredData = data.filter((row) => row.full_name?.toLowerCase().includes(search.toLowerCase()));
+
   return (
     <div>
       <h2>Danh sách đăng ký ca thi: {sessionName || sessionId}</h2>
-      <div style={{ marginBottom: 16, display: 'flex', gap: 12 }}>
+      <div style={{ marginBottom: 16, display: 'flex', gap: 12, alignItems: 'center' }}>
         <Button onClick={() => navigate(-1)}>Quay lại</Button>
+
         {!isTeacher && (
           <>
             <Button type="primary" onClick={() => setModalOpen({ open: true, isDangKyThi: true })} disabled={isRegisteredThisSession()}>
@@ -209,8 +216,14 @@ const QLDangKyCaThi = () => {
             Tạo học sinh tham gia thi
           </Button>
         )}
+        <SearchInput
+          placeholder="Tìm kiếm theo tên người đăng ký..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{ width: 250 }}
+        />
       </div>
-      <Table columns={columns} dataSource={data.map((row, idx) => ({ ...row, key: idx }))} loading={loading} pagination={{ pageSize: 10 }} />
+      <Table columns={columns} dataSource={filteredData.map((row, idx) => ({ ...row, key: idx }))} loading={loading} pagination={{ pageSize: 10 }} />
 
       {/* Modal xem chi tiết user */}
       <Modal

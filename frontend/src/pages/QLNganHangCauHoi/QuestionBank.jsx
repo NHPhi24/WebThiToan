@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import useModal from '../../hooks/useModal';
 import { Table, Button, Tooltip, Space, Modal, message } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
+import SearchInput from '../../components/SearchInput';
+import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import OperationColumn from '../../components/ActionIcons';
 import apiService from '../../services/api';
 import AddQuestionModal from './AddQuestionModal';
 import ImportQuestionModal from './ImportQuestionModal';
 import 'katex/dist/katex.min.css';
 import MathText from '../../utils/MathText';
+import { Search } from 'lucide-react';
 
 const QuestionBank = () => {
   const [questions, setQuestions] = useState([]);
@@ -19,6 +21,7 @@ const QuestionBank = () => {
   const [editData, setEditData] = useState(null);
   const [showView, setShowView] = useState(false);
   const [viewData, setViewData] = useState(null);
+  const [search, setSearch] = useState('');
 
   // Hook modal import
   const importModal = useModal();
@@ -173,15 +176,29 @@ const QuestionBank = () => {
     },
   ];
 
+  // Lọc dữ liệu theo nội dung câu hỏi
+  const filteredQuestions = questions.filter((q) => q.content?.toLowerCase().includes(search.toLowerCase()));
+
   return (
     <div>
-      <h1>Quản lý ngân hàng câu hỏi</h1>
-      <Button type="primary" icon={<PlusOutlined />} style={{ marginBottom: 16, marginRight: 8 }} onClick={() => setShowAdd(true)}>
-        Thêm câu hỏi
-      </Button>
-      <Button type="default" style={{ marginBottom: 16 }} onClick={importModal.open}>
-        Import
-      </Button>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <h1>Quản lý ngân hàng câu hỏi</h1>
+        <ReloadOutlined onClick={fetchQuestions} />
+      </div>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16 }}>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => setShowAdd(true)}>
+          Thêm câu hỏi
+        </Button>
+        <Button type="default" onClick={importModal.open}>
+          Import
+        </Button>
+        <SearchInput
+          placeholder="Tìm kiếm theo nội dung câu hỏi..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{ width: 300 }}
+        />
+      </div>
       <ImportQuestionModal
         visible={importModal.visible}
         onClose={importModal.close}
@@ -197,7 +214,7 @@ const QuestionBank = () => {
           }
         }}
       />
-      <Table columns={columns} dataSource={questions} rowKey="id" loading={loading} bordered scroll={{ x: 'max-content' }} />
+      <Table columns={columns} dataSource={filteredQuestions} rowKey="id" loading={loading} bordered scroll={{ x: 'max-content' }} />
       <AddQuestionModal open={showAdd} onClose={() => setShowAdd(false)} onSuccess={fetchQuestions} edit={false} />
       <AddQuestionModal
         open={showEdit}

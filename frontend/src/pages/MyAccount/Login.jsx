@@ -15,12 +15,12 @@ const Login = ({ setIsLoggedIn, setUser }) => {
         username: values.username,
         password: values.password,
       });
-      // Nếu đăng nhập thành công, BE trả về user object
-      if (response && response.data && response.data.id) {
-        const user = response.data;
+      // Nếu đăng nhập thành công, BE trả về { user, token }
+      if (response && response.data && response.data.user && response.data.token) {
+        const { user, token } = response.data;
         setUser(user);
         setIsLoggedIn(true);
-        localStorage.setItem('user', JSON.stringify(user));
+        localStorage.setItem('user', JSON.stringify({ ...user, token }));
         message.success('Đăng nhập thành công!');
         navigate('/'); // Về trang chủ
       } else {

@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Table, Button, message, Modal } from 'antd';
+import SearchInput from '../../../components/SearchInput';
 import api from '../../../services/api';
 import OperationColumn from '../../../components/ActionIcons';
 import CauTrucDeThiModal from './CauTrucDeThiModal';
 import CauTrucDeThiDetailModal from './CauTrucDeThiDetailModal';
 import { useNavigate } from 'react-router-dom';
+import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 const CauTruDeThi = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -13,6 +15,7 @@ const CauTruDeThi = () => {
   const [editRecord, setEditRecord] = useState(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [detailRecord, setDetailRecord] = useState(null);
+  const [search, setSearch] = useState('');
   const handleView = (record) => {
     setDetailRecord(record);
     setDetailModalOpen(true);
@@ -59,6 +62,9 @@ const CauTruDeThi = () => {
     });
   };
 
+  // Lọc dữ liệu theo tên cấu trúc
+  const filteredData = data.filter((row) => row.template_name?.toLowerCase().includes(search.toLowerCase()));
+
   const columns = [
     { title: 'Tên cấu trúc', dataIndex: 'template_name', key: 'template_name' },
     { title: 'Tổng số câu', dataIndex: 'total_questions', key: 'total_questions' },
@@ -82,14 +88,25 @@ const CauTruDeThi = () => {
 
   return (
     <div>
-      <h1>Danh sách cấu trúc đề thi</h1>
-      <Button style={{ marginRight: 12 }} onClick={() => navigate(-1)}>
-        Quay lại
-      </Button>
-      <Button type="primary" style={{ marginBottom: 16 }} onClick={() => setAddModalOpen(true)}>
-        Thêm cấu trúc
-      </Button>
-      <Table columns={columns} dataSource={data} loading={loading} rowKey="id" pagination={{ pageSize: 10 }} />
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <h1>Danh sách cấu trúc đề thi</h1>
+          <ReloadOutlined onClick={fetchData} />
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <Button onClick={() => navigate(-1)}>Quay lại</Button>
+          <Button type="primary" onClick={() => setAddModalOpen(true)}>
+            Thêm cấu trúc
+          </Button>
+          <SearchInput
+            placeholder="Tìm kiếm theo tên cấu trúc..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ width: 300 }}
+          />
+        </div>
+      </div>
+      <Table columns={columns} dataSource={filteredData} loading={loading} rowKey="id" pagination={{ pageSize: 10 }} />
       <CauTrucDeThiModal
         open={addModalOpen || editModalOpen}
         onClose={() => {
