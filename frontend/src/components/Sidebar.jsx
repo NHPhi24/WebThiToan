@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Menu, Typography } from 'antd';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { BookOutlined, ProfileOutlined, SolutionOutlined, TeamOutlined, BarChartOutlined, FileSearchOutlined, UserOutlined } from '@ant-design/icons';
+import { Home } from 'lucide-react';
 
 const { Title } = Typography;
 
@@ -13,7 +14,7 @@ const Sidebar = ({ user, collapsed }) => {
   const taskItems = [
     {
       key: '/',
-      icon: <UserOutlined />,
+      icon: <Home size={15} />,
       label: 'Trang chủ',
     },
     ...(user?.role === 'STUDENT'
@@ -31,7 +32,7 @@ const Sidebar = ({ user, collapsed }) => {
           },
         ]
       : []),
-    ...(user?.role === 'TEACHER' || user?.role === 'ADMIN'
+    ...(user?.role === 'TEACHER'
       ? [
           {
             key: '/qlcauhoi',
@@ -52,6 +53,30 @@ const Sidebar = ({ user, collapsed }) => {
             key: '/qlhocsinh',
             icon: <TeamOutlined />,
             label: 'Quản lý học sinh',
+          },
+          {
+            key: '/qlketquathi',
+            icon: <BarChartOutlined />,
+            label: 'Quản lý kết quả thi',
+          },
+        ]
+      : []),
+    ...(user?.role === 'ADMIN'
+      ? [
+          {
+            key: '/qlcauhoi',
+            icon: <BookOutlined />,
+            label: 'Quản lý ngân hàng câu hỏi',
+          },
+          {
+            key: '/qldethi',
+            icon: <SolutionOutlined />,
+            label: 'Quản lý đề thi',
+          },
+          {
+            key: '/qlcathi',
+            icon: <ProfileOutlined />,
+            label: 'Quản lý ca thi',
           },
           {
             key: '/qlketquathi',

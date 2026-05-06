@@ -22,6 +22,11 @@ const MyProfile = () => {
             email: res.data.email,
             phone: res.data.phone,
             username: res.data.username,
+            profile_info: res.data.profile_info
+              ? typeof res.data.profile_info === 'string'
+                ? res.data.profile_info
+                : JSON.stringify(res.data.profile_info, null, 2)
+              : '',
           });
         })
         .catch(() => {
@@ -94,7 +99,7 @@ const MyProfile = () => {
           <Input disabled />
         </Form.Item>
         <Form.Item label="Thông tin bổ sung (JSON)" name="profile_info" tooltip="Nhập thông tin bổ sung dưới dạng JSON">
-          <Input.TextArea rows={4} placeholder='{"truong": "abc"}' />
+          <Input.TextArea rows={4} placeholder={`Nhập thông tin như VD: \nSDT : 0123456789\nĐịa chỉ : Hà Nội`} />
         </Form.Item>
         <Form.Item>
           <Button type="primary" onClick={handleSave} loading={loading}>
