@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Table, Tag, Spin, Button, Select } from 'antd';
 import SearchInput from '../../components/SearchInput';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { ReloadOutlined } from '@ant-design/icons';
 import api from '../../services/api';
 import * as XLSX from 'xlsx';
@@ -13,6 +13,7 @@ const KetQuaThi = () => {
   const [exams, setExams] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [selectedSession, setSelectedSession] = useState(null);
+  const location = useLocation();
   const [users, setUsers] = useState([]);
   const [search, setSearch] = useState('');
   const navigate = useNavigate();
@@ -48,9 +49,16 @@ const KetQuaThi = () => {
     }
   };
 
+  // Khi vào trang, nếu có sessionId trên query param thì set luôn
   useEffect(() => {
     fetchData();
-  }, []);
+    // Lấy sessionId từ query param
+    const params = new URLSearchParams(location.search);
+    const sessionId = params.get('sessionId');
+    if (sessionId) {
+      setSelectedSession(Number(sessionId));
+    }
+  }, [location.search]);
 
   const columns = [
     {

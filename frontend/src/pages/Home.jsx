@@ -53,30 +53,42 @@ const Home = () => {
       .then(([resResults, resSessions]) => {
         const results = resResults.data || [];
         const sessions = resSessions.data || [];
-        const sessionNameMap = {};
-        sessions.forEach((s) => {
-          sessionNameMap[s.id] = s.session_name;
-        });
-        // Gom nhóm theo ca thi, tính điểm trung bình từng ca
+        // Gom nhóm theo ca thi, tính điểm trung bình từng ca, dùng session_id để đối chiếu
         const sessionMap = {};
         results.forEach((r) => {
-          const name = sessionNameMap[r.session_id] || r.session_name || `Ca ${r.session_id}`;
-          if (!sessionMap[r.session_id]) sessionMap[r.session_id] = { session_name: name, scores: [] };
-          sessionMap[r.session_id].scores.push(r.score);
+          const sid = String(r.session_id);
+          if (!sessionMap[sid]) sessionMap[sid] = { session_id: sid, scores: [] };
+          sessionMap[sid].scores.push(r.score);
         });
-        const chartData = Object.values(sessionMap).map((s) => ({
-          session_name: s.session_name,
-          avg_score: s.scores.length > 0 ? Math.round((s.scores.reduce((a, b) => a + b, 0) / s.scores.length) * 100) / 100 : 0,
-        }));
-        // Chỉ lấy 5 ca thi mới nhất (theo thứ tự thời gian ca thi, không phải id)
-        // Lấy danh sách ca thi có trong chartData, sort theo start_time từ sessions
-        const sessionOrder = sessions
-          .filter((s) => chartData.some((c) => c.session_name === s.session_name))
-          .sort((a, b) => new Date(b.start_time) - new Date(a.start_time))
-          .map((s) => s.session_name);
-        const chartDataSorted = sessionOrder
-          .map((name) => chartData.find((c) => c.session_name === name))
-          .filter(Boolean)
+        // Tạo chartData: lấy tên từ sessions, nếu không có thì fallback
+        const chartData = Object.values(sessionMap)
+          .map((s) => {
+            if (!Array.isArray(s.scores) || s.scores.length === 0) return null;
+            // Ép kiểu score về số, loại bỏ giá trị không hợp lệ
+            const validScores = s.scores.map(Number).filter((v) => typeof v === 'number' && !isNaN(v));
+            if (validScores.length === 0) return null;
+            const avg = validScores.reduce((a, b) => a + b, 0) / validScores.length;
+            if (isNaN(avg)) return null;
+            const session = sessions.find((sess) => String(sess.id) === String(s.session_id));
+            return {
+              session_id: s.session_id,
+              session_name: session ? session.session_name : `Ca ${s.session_id}`,
+              avg_score: Math.round(avg * 100) / 100,
+              start_time: session ? session.start_time : null,
+            };
+          })
+          .filter(Boolean);
+        // Log dữ liệu để debug
+        console.log('results:', results);
+        console.log('sessions:', sessions);
+        console.log('chartData:', chartData);
+        // Sắp xếp theo start_time mới nhất, nếu không có start_time thì cho xuống cuối
+        const chartDataSorted = chartData
+          .sort((a, b) => {
+            if (!a.start_time) return 1;
+            if (!b.start_time) return -1;
+            return new Date(b.start_time) - new Date(a.start_time);
+          })
           .slice(0, 5);
         setScoreChartData(chartDataSorted);
       })

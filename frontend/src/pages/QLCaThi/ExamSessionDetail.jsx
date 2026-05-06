@@ -60,7 +60,7 @@ const ExamSessionDetail = ({ data, onViewResult, canEdit, onStatusChange, regist
         </Button>
       )}
       {data.status === 'FINISHED' && (
-        <Button type="default" style={{ marginTop: 16, marginLeft: 8 }} onClick={() => navigate(`/qlketquathi`)}>
+        <Button type="default" style={{ marginTop: 16, marginLeft: 8 }} onClick={() => navigate(`/qlketquathi?sessionId=${data.id}`)}>
           Xem kết quả thi
         </Button>
       )}
