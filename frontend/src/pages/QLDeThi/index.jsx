@@ -40,11 +40,6 @@ const QLDeThi = () => {
     api.getAllExamTemplates().then((res) => setTemplates(res.data || []));
   }, []);
 
-  useEffect(() => {
-    fetchData();
-    api.getAllUsers().then((res) => setUsers(res.data || []));
-  }, []);
-
   // Xem chi tiết đề thi
   const handleView = async (record) => {
     setModalData(record);
