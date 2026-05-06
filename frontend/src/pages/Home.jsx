@@ -78,10 +78,6 @@ const Home = () => {
             };
           })
           .filter(Boolean);
-        // Log dữ liệu để debug
-        console.log('results:', results);
-        console.log('sessions:', sessions);
-        console.log('chartData:', chartData);
         // Sắp xếp theo start_time mới nhất, nếu không có start_time thì cho xuống cuối
         const chartDataSorted = chartData
           .sort((a, b) => {

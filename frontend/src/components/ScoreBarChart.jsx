@@ -1,13 +1,6 @@
 import React from 'react';
 import { Column } from '@ant-design/plots';
 
-/**
- * data: array of { session_name: string, avg_score: number }
- * Example: [
- *   { session_name: 'Ca 1', avg_score: 7.5 },
- *   { session_name: 'Ca 2', avg_score: 8.2 },
- * ]
- */
 const ScoreBarChart = ({ data }) => {
   const config = {
     data,
@@ -17,10 +10,14 @@ const ScoreBarChart = ({ data }) => {
     label: {
       position: 'top',
       style: {
-        fill: '#595959',
+        fill: '#ffffff', // màu xanh đậm nổi bật
         fontWeight: 600,
+        fontSize: 16,
+        lineWidth: 2,
+        textShadow: '0 1px 4px #fff',
       },
-      formatter: (v) => v,
+      formatter: (v) => Number(v).toFixed(2), // làm tròn 2 số thập phân
+      offset: 8, // đẩy số lên cao hơn khỏi cột
     },
     xAxis: {
       title: { text: 'Ca thi' },
@@ -30,7 +27,7 @@ const ScoreBarChart = ({ data }) => {
       min: 0,
       max: 10,
     },
-    columnWidthRatio: 0.2,
+    columnWidthRatio: 0.1,
     height: 350,
     autoFit: true,
   };
