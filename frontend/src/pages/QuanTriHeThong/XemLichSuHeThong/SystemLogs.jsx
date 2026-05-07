@@ -46,12 +46,12 @@ const SystemLogs = () => {
       key: 'resource_type',
       width: 140,
     },
-    {
-      title: 'Mã đối tượng',
-      dataIndex: 'resource_id',
-      key: 'resource_id',
-      width: 120,
-    },
+    // {
+    //   title: 'Mã đối tượng',
+    //   dataIndex: 'resource_id',
+    //   key: 'resource_id',
+    //   width: 120,
+    // },
     {
       title: 'Tên đối tượng',
       dataIndex: 'resource_name',
@@ -80,13 +80,7 @@ const SystemLogs = () => {
 
   return (
     <Card size="small" title={<Title level={4}>Lịch sử hệ thống</Title>}>
-      <Table
-        rowKey="id"
-        loading={loading}
-        columns={columns}
-        dataSource={logs}
-        pagination={{ pageSize: 10 }}
-      />
+      <Table rowKey="id" loading={loading} columns={columns} dataSource={logs} pagination={{ pageSize: 10 }} />
     </Card>
   );
 };

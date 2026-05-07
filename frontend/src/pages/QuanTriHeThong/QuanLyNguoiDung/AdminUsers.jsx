@@ -119,6 +119,12 @@ const AdminUsers = () => {
     }
   };
 
+  // Hàm lấy label vai trò từ ROLES
+  const getRoleLabel = (roleValue) => {
+    const found = ROLES.find((r) => r.value === roleValue);
+    return found ? found.label : roleValue;
+  };
+
   const columns = [
     {
       title: 'Tên đăng nhập',
@@ -139,6 +145,7 @@ const AdminUsers = () => {
       title: 'Vai trò',
       dataIndex: 'role',
       key: 'role',
+      render: (role) => getRoleLabel(role),
     },
     {
       title: 'Ngày tạo',
@@ -171,6 +178,7 @@ const AdminUsers = () => {
         <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
           {isGiaoVien ? 'Thêm học sinh' : 'Thêm người dùng'}
         </Button>
+        <Button onClick={() => setImportModalVisible(true)}>Import</Button>
         <SearchInput
           placeholder="Tìm kiếm tên, email hoặc tên đăng nhập..."
           value={search}
@@ -279,7 +287,7 @@ const AdminUsers = () => {
               <b>Email:</b> {viewUser.email}
             </p>
             <p>
-              <b>Vai trò:</b> {viewUser.role}
+              <b>Vai trò:</b> {getRoleLabel(viewUser.role)}
             </p>
             <p>
               <b>Ngày tạo:</b> {viewUser.created_at ? new Date(viewUser.created_at).toLocaleString() : '-'}
