@@ -71,8 +71,8 @@ const AppLayout = ({ user, isLoggedIn, setUser, setIsLoggedIn }) => {
             <Route path="/qlcauhoi" element={isLoggedIn && (user?.role === 'TEACHER' || user?.role === 'ADMIN') ? <QuestionBank /> : <NoAccess />} />
             <Route path="/qlketquathi" element={isLoggedIn ? <KetQuaThi /> : <NoAccess />} />
             <Route path="/qlketquathi/:resultId" element={isLoggedIn ? <XemKetQuaThi /> : <NoAccess />} />
-            <Route path="/qlnguoidung" element={isLoggedIn ? <AdminUsers /> : <NoAccess />} />
-            <Route path="/qlhocsinh" element={isLoggedIn ? <AdminUsers /> : <NoAccess />} />
+            <Route path="/qlnguoidung" element={isLoggedIn && (user?.role === 'TEACHER' || user?.role === 'ADMIN') ? <AdminUsers /> : <NoAccess />} />
+            <Route path="/qlhocsinh" element={isLoggedIn && (user?.role === 'TEACHER' || user?.role === 'ADMIN') ? <AdminUsers /> : <NoAccess />} />
           </Routes>
         </div>
       </div>
