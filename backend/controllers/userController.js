@@ -244,8 +244,8 @@ const loginUser = async (req, res) => {
       return res.status(401).json({ error: 'Invalid username or password' });
     }
     const user = result.rows[0];
-    // Tạo JWT token, chỉ có hiệu lực trong 3 giờ
-    const token = jwt.sign({ id: user.id, username: user.username, role: user.role }, process.env.JWT_SECRET || 'secret-key', { expiresIn: '3h' });
+    // Tạo JWT token, chỉ có hiệu lực trong 2 giờ
+    const token = jwt.sign({ id: user.id, username: user.username, role: user.role }, process.env.JWT_SECRET || 'secret-key', { expiresIn: '2h' });
     res.json({ user, token });
   } catch (error) {
     console.error('loginUser error:', error);

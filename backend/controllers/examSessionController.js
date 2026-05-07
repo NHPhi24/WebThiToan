@@ -282,6 +282,20 @@ const updateExamSessionStatus = async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
   try {
+    // Lấy thông tin ca thi hiện tại
+    const sessionRes = await db.query('SELECT * FROM exam_sessions WHERE id = $1', [id]);
+    if (sessionRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Exam session not found' });
+    }
+    const session = sessionRes.rows[0];
+    // Nếu đổi về READY mà đã quá thời gian bắt đầu thì báo lỗi
+    if ((status === 'READY' || !status) && session.start_time) {
+      const now = Date.now();
+      const start = new Date(session.start_time).getTime();
+      if (now >= start) {
+        return res.status(400).json({ error: 'Không thể chuyển về trạng thái Sẵn sàng khi đã quá thời gian bắt đầu ca thi.' });
+      }
+    }
     let result;
     if (status === 'ONGOING') {
       // Đổi sang ONGOING: lưu thời điểm đổi
