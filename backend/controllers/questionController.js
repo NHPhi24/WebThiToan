@@ -53,13 +53,13 @@ async function checkSimilarQuestions(content, excludeId = null) {
 }
 
 const createQuestion = async (req, res) => {
-  const { id, teacher_id, content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level } = req.body;
+  const { id, teacher_id, content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, grade } = req.body;
   try {
     if (id) {
       // Nếu có id, cập nhật
       const result = await db.query(
-        `UPDATE questions SET teacher_id=$1, content=$2, ans_a=$3, ans_b=$4, ans_c=$5, ans_d=$6, correct_ans=$7, explanation=$8, level=$9 WHERE id=$10 RETURNING *`,
-        [teacher_id, content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, id],
+        `UPDATE questions SET teacher_id=$1, content=$2, ans_a=$3, ans_b=$4, ans_c=$5, ans_d=$6, correct_ans=$7, explanation=$8, level=$9, grade=$10 WHERE id=$11 RETURNING *`,
+        [teacher_id, content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, grade, id],
       );
       if (result.rows.length === 0) return res.status(404).json({ error: 'Question not found' });
       await createAuditLog({
@@ -69,7 +69,7 @@ const createQuestion = async (req, res) => {
         resource_type: 'question',
         resource_id: id,
         resource_name: content?.slice(0, 80) || null,
-        details: { level, teacher_id, correct_ans },
+        details: { level, grade, teacher_id, correct_ans },
       });
       return res.json(Question.fromRow(result.rows[0]));
     } else {
@@ -90,10 +90,10 @@ const createQuestion = async (req, res) => {
         });
       }
       const result = await db.query(
-        `INSERT INTO questions (teacher_id, content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        `INSERT INTO questions (teacher_id, content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, grade)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
          RETURNING *`,
-        [teacher_id, content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level],
+        [teacher_id, content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, grade],
       );
       await createAuditLog({
         actor_id: req.body.actor_id || teacher_id || null,
@@ -102,7 +102,7 @@ const createQuestion = async (req, res) => {
         resource_type: 'question',
         resource_id: result.rows[0].id?.toString() || null,
         resource_name: result.rows[0].content?.slice(0, 80) || null,
-        details: { level, teacher_id, correct_ans },
+        details: { level, grade, teacher_id, correct_ans },
       });
       return res.status(201).json(Question.fromRow(result.rows[0]));
     }
@@ -129,7 +129,7 @@ const getQuestionById = async (req, res) => {
 
 const updateQuestion = async (req, res) => {
   const { id } = req.params;
-  const { teacher_id, content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level } = req.body;
+  const { teacher_id, content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, grade } = req.body;
   try {
     // Kiểm tra tương đồng nội dung trước khi update
     const check = await checkSimilarQuestions(content, id);
@@ -141,8 +141,8 @@ const updateQuestion = async (req, res) => {
     }
     // Nếu chỉ khác năm hoặc không trùng, cho phép update
     const result = await db.query(
-      `UPDATE questions SET teacher_id=$1, content=$2, ans_a=$3, ans_b=$4, ans_c=$5, ans_d=$6, correct_ans=$7, explanation=$8, level=$9 WHERE id=$10 RETURNING *`,
-      [teacher_id, content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, id],
+      `UPDATE questions SET teacher_id=$1, content=$2, ans_a=$3, ans_b=$4, ans_c=$5, ans_d=$6, correct_ans=$7, explanation=$8, level=$9, grade=$10 WHERE id=$11 RETURNING *`,
+      [teacher_id, content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, grade, id],
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Question not found' });
@@ -154,7 +154,7 @@ const updateQuestion = async (req, res) => {
       resource_type: 'question',
       resource_id: id,
       resource_name: content?.slice(0, 80) || null,
-      details: { level, teacher_id, correct_ans },
+      details: { level, grade, teacher_id, correct_ans },
     });
     res.json(Question.fromRow(result.rows[0]));
   } catch (error) {
@@ -199,15 +199,15 @@ const importQuestionsFromExcel = async (req, res) => {
     const inserted = [];
     const skipped = [];
     for (const row of rows) {
-      const { teacher_id, content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level } = row;
+      const { teacher_id, content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, grade } = row;
       if (!teacher_id || !content || !ans_a || !ans_b || !ans_c || !ans_d || !correct_ans || !level) continue;
       const check = await checkSimilarQuestions(content);
       if (check.type === 'exact') {
         // Nếu chỉ khác năm, ghi đè
         const oldId = check.question.id;
         const result = await db.query(
-          `UPDATE questions SET teacher_id=$1, content=$2, ans_a=$3, ans_b=$4, ans_c=$5, ans_d=$6, correct_ans=$7, explanation=$8, level=$9 WHERE id=$10 RETURNING *`,
-          [teacher_id, content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, oldId],
+          `UPDATE questions SET teacher_id=$1, content=$2, ans_a=$3, ans_b=$4, ans_c=$5, ans_d=$6, correct_ans=$7, explanation=$8, level=$9, grade=$10 WHERE id=$11 RETURNING *`,
+          [teacher_id, content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, grade, oldId],
         );
         inserted.push(result.rows[0]);
       } else if (check.type === 'similar') {
@@ -218,10 +218,10 @@ const importQuestionsFromExcel = async (req, res) => {
         continue;
       } else {
         const result = await db.query(
-          `INSERT INTO questions (teacher_id, content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          `INSERT INTO questions (teacher_id, content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, grade)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
            RETURNING *`,
-          [teacher_id, content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level],
+          [teacher_id, content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, grade],
         );
         inserted.push(result.rows[0]);
       }
@@ -271,15 +271,15 @@ module.exports.importQuestionsFromExcel = async (req, res) => {
 
     // Luôn tiến hành import từng phần
     for (const row of rows) {
-      const { content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level } = row;
+      const { content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, grade } = row;
       // BỎ kiểm tra thiếu trường bắt buộc, vẫn cho phép import dòng thiếu trường
       const similars = await checkSimilarQuestions(content);
       if (similars.length === 1) {
         // Nếu chỉ khác năm, ghi đè
         const oldId = similars[0].id;
         const result = await db.query(
-          `UPDATE questions SET content=$1, ans_a=$2, ans_b=$3, ans_c=$4, ans_d=$5, correct_ans=$6, explanation=$7, level=$8 WHERE id=$9 RETURNING *`,
-          [content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, oldId],
+          `UPDATE questions SET content=$1, ans_a=$2, ans_b=$3, ans_c=$4, ans_d=$5, correct_ans=$6, explanation=$7, level=$8, grade=$9 WHERE id=$10 RETURNING *`,
+          [content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, grade, oldId],
         );
         inserted.push(result.rows[0]);
       } else if (similars.length === 2) {
@@ -296,10 +296,10 @@ module.exports.importQuestionsFromExcel = async (req, res) => {
         continue;
       } else {
         const result = await db.query(
-          `INSERT INTO questions (content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          `INSERT INTO questions (content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, grade)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
            RETURNING *`,
-          [content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level],
+          [content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, grade],
         );
         inserted.push(result.rows[0]);
       }
@@ -319,7 +319,7 @@ module.exports.importQuestionsFromExcel = async (req, res) => {
 // Xuất file mẫu Excel để nhập hàng loạt
 module.exports.exportQuestionsTemplate = (req, res) => {
   try {
-    const headers = ['content', 'ans_a', 'ans_b', 'ans_c', 'ans_d', 'correct_ans', 'explanation', 'level'];
+    const headers = ['content', 'ans_a', 'ans_b', 'ans_c', 'ans_d', 'correct_ans', 'explanation', 'level', 'grade'];
     const ws = xlsx.utils.aoa_to_sheet([headers]);
     const wb = xlsx.utils.book_new();
     xlsx.utils.book_append_sheet(wb, ws, 'QuestionsTemplate');

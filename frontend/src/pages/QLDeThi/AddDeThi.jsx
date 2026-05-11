@@ -23,8 +23,8 @@ const AddDeThi = ({ onSubmit, onOpenStructure, loading, autoMode }) => {
   }, []);
 
   const handleFinish = (values) => {
-    // Truyền exam_code, template_id và teacher_id cho auto-generate
-    const payload = { exam_code: values.exam_code, template_id: values.template_id, teacher_id: user?.id };
+    // Thêm grade vào payload gửi lên BE
+    const payload = { exam_code: values.exam_code, template_id: values.template_id, teacher_id: user?.id, grade: values.grade };
     console.log('Payload gửi lên BE:', payload);
     if (onSubmit) onSubmit(payload);
   };
@@ -33,6 +33,16 @@ const AddDeThi = ({ onSubmit, onOpenStructure, loading, autoMode }) => {
     <Form form={form} layout="vertical" onFinish={handleFinish} style={{ maxWidth: 500, margin: '0 auto' }}>
       <Form.Item label="Mã đề thi" name="exam_code" rules={[{ required: true, message: 'Vui lòng nhập mã đề thi' }]}>
         <Input placeholder="Nhập mã đề thi" />
+      </Form.Item>
+      <Form.Item label="Lớp" name="grade" rules={[{ required: true, message: 'Chọn lớp' }]}>
+        <Select
+          placeholder="Chọn lớp"
+          options={[
+            { value: 10, label: 'Lớp 10' },
+            { value: 11, label: 'Lớp 11' },
+            { value: 12, label: 'Lớp 12' },
+          ]}
+        />
       </Form.Item>
       <Form.Item label="Cấu trúc đề thi" name="template_id" rules={[{ required: true, message: 'Vui lòng chọn Template ID' }]}>
         <Select

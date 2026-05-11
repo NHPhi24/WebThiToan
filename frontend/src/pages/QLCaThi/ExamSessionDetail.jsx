@@ -33,8 +33,11 @@ const ExamSessionDetail = ({ data, onViewResult, canEdit, onStatusChange, regist
   // Chỉ enable nút đăng ký ca thi nếu:
   // - Học sinh chưa đăng ký ca thi READY nào (registeredSessionId == null)
   // - Hoặc ca thi đang xem là ca thi đã đăng ký (registeredSessionId == data.id)
-  // Ngược lại thì disable
-  const disableRegister = !!registeredSessionId && registeredSessionId !== data.id;
+  // - Và học sinh phải cùng lớp với ca thi
+  let disableRegister = !!registeredSessionId && registeredSessionId !== data.id;
+  if (currentUser && currentUser.role === 'STUDENT' && String(currentUser.grade) !== String(data.grade)) {
+    disableRegister = true;
+  }
 
   return (
     <div>
@@ -50,6 +53,9 @@ const ExamSessionDetail = ({ data, onViewResult, canEdit, onStatusChange, regist
       <p>
         <b>Trạng thái:</b>
         <Tag color={statusColors[data.status]}>{EXAM_SESSION_STATUS.find((s) => s.value === data.status)?.label || data.status}</Tag>
+      </p>
+      <p>
+        <b>Lớp:</b> {data.grade}
       </p>
       <p>
         <b>Giáo viên tạo:</b> {teacherName}

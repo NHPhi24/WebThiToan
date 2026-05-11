@@ -49,14 +49,14 @@ const getAllExamTemplates = async (req, res) => {
 };
 
 const createExamTemplate = async (req, res) => {
-  const { template_name, total_questions, basic_percent, advanced_percent, teacher_id } = req.body;
+  const { template_name, total_questions, basic_percent, advanced_percent, teacher_id, grade } = req.body;
 
   try {
     const result = await db.query(
-      `INSERT INTO exam_templates (template_name, total_questions, basic_percent, advanced_percent, teacher_id)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO exam_templates (template_name, total_questions, basic_percent, advanced_percent, teacher_id, grade)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [template_name, total_questions || 50, basic_percent || 70, advanced_percent || 30, teacher_id],
+      [template_name, total_questions || 50, basic_percent || 70, advanced_percent || 30, teacher_id, grade],
     );
 
     await createAuditLog({
@@ -66,7 +66,7 @@ const createExamTemplate = async (req, res) => {
       resource_type: 'exam_template',
       resource_id: result.rows[0].id?.toString() || null,
       resource_name: result.rows[0].template_name,
-      details: { total_questions, basic_percent, advanced_percent, teacher_id },
+      details: { total_questions, basic_percent, advanced_percent, teacher_id, grade },
     });
 
     // Lấy lại bản ghi vừa tạo, join với users để trả về teacher_full_name
@@ -92,7 +92,7 @@ const createExamTemplate = async (req, res) => {
 
 const updateExamTemplate = async (req, res) => {
   const { id } = req.params;
-  const { template_name, total_questions, basic_percent, advanced_percent, teacher_id } = req.body;
+  const { template_name, total_questions, basic_percent, advanced_percent, teacher_id, grade } = req.body;
   try {
     const result = await db.query(
       `UPDATE exam_templates
@@ -100,10 +100,11 @@ const updateExamTemplate = async (req, res) => {
            total_questions = $2,
            basic_percent = $3,
            advanced_percent = $4,
-           teacher_id = $5
-       WHERE id = $6
+           teacher_id = $5,
+           grade = $6
+       WHERE id = $7
        RETURNING *`,
-      [template_name, total_questions, basic_percent, advanced_percent, teacher_id, id],
+      [template_name, total_questions, basic_percent, advanced_percent, teacher_id, grade, id],
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Exam template not found' });
@@ -116,7 +117,8 @@ const updateExamTemplate = async (req, res) => {
       resource_type: 'exam_template',
       resource_id: id,
       resource_name: template_name,
-      details: { template_name, total_questions, basic_percent, advanced_percent, teacher_id },
+      grade: grade,
+      details: { template_name, total_questions, basic_percent, advanced_percent, teacher_id, grade },
     });
 
     // Lấy lại bản ghi vừa cập nhật, join với users để trả về teacher_full_name, created_at...

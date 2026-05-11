@@ -175,7 +175,7 @@ const getAllExamSessions = async (req, res) => {
 };
 
 const createExamSession = async (req, res) => {
-  const { session_name, start_time, duration, teacher_id, status, exam_ids } = req.body;
+  const { session_name, start_time, duration, teacher_id, status, exam_ids, grade } = req.body;
 
   try {
     // Kiểm tra trùng tên ca thi
@@ -185,10 +185,10 @@ const createExamSession = async (req, res) => {
     }
 
     const result = await db.query(
-      `INSERT INTO exam_sessions (session_name, start_time, duration, teacher_id, status, exam_ids)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO exam_sessions (session_name, start_time, duration, teacher_id, status, exam_ids, grade)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [session_name, start_time, duration, teacher_id, status || 'READY', exam_ids || []],
+      [session_name, start_time, duration, teacher_id, status || 'READY', exam_ids || [], grade],
     );
 
     await createAuditLog({
@@ -198,7 +198,7 @@ const createExamSession = async (req, res) => {
       resource_type: 'exam_session',
       resource_id: result.rows[0].id?.toString() || null,
       resource_name: result.rows[0].session_name,
-      details: { start_time, duration, status, teacher_id, exam_ids },
+      details: { start_time, duration, status, teacher_id, exam_ids, grade },
     });
 
     res.status(201).json({ ...ExamSession.fromRow(result.rows[0]), created_at: new Date() });
@@ -228,11 +228,11 @@ const getExamSessionById = async (req, res) => {
 // Sửa ca thi
 const updateExamSession = async (req, res) => {
   const { id } = req.params;
-  const { session_name, start_time, duration, teacher_id, status, exam_ids } = req.body;
+  const { session_name, start_time, duration, teacher_id, status, exam_ids, grade } = req.body;
   try {
     const result = await db.query(
-      `UPDATE exam_sessions SET session_name=$1, start_time=$2, duration=$3, teacher_id=$4, status=$5, exam_ids=$6 WHERE id=$7 RETURNING *`,
-      [session_name, start_time, duration, teacher_id, status, exam_ids || [], id],
+      `UPDATE exam_sessions SET session_name=$1, start_time=$2, duration=$3, teacher_id=$4, status=$5, exam_ids=$6, grade=$7 WHERE id=$8 RETURNING *`,
+      [session_name, start_time, duration, teacher_id, status, exam_ids || [], grade, id],
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Exam session not found' });
@@ -244,7 +244,7 @@ const updateExamSession = async (req, res) => {
       resource_type: 'exam_session',
       resource_id: id,
       resource_name: session_name,
-      details: { start_time, duration, status, teacher_id, exam_ids },
+      details: { start_time, duration, status, teacher_id, exam_ids, grade },
     });
     res.json(ExamSession.fromRow(result.rows[0]));
   } catch (error) {

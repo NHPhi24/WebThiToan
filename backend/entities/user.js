@@ -1,5 +1,5 @@
 class User {
-  constructor({ id, username, password, full_name, email, role, created_by, profile_info, created_at }) {
+  constructor({ id, username, password, full_name, email, role, created_by, profile_info, created_at, grade }) {
     this.id = id;
     this.username = username;
     this.password = password;
@@ -9,6 +9,7 @@ class User {
     this.created_by = created_by;
     this.profile_info = profile_info;
     this.created_at = created_at;
+    this.grade = grade;
   }
 
   static fromRow(row) {

@@ -66,6 +66,7 @@ const AdminUsers = () => {
       full_name: user.full_name,
       email: user.email,
       role: user.role,
+      grade: user.grade,
       password: '',
     });
     setModalVisible(true);
@@ -83,6 +84,7 @@ const AdminUsers = () => {
         await api.updateUser(editingUser.id, {
           ...values,
           password: values.password || undefined,
+          grade: values.grade,
         });
         message.success('Cập nhật người dùng thành công');
       } else {
@@ -140,6 +142,11 @@ const AdminUsers = () => {
       title: 'Email',
       dataIndex: 'email',
       key: 'email',
+    },
+    {
+      title: 'Lớp',
+      dataIndex: 'grade',
+      key: 'grade',
     },
     {
       title: 'Vai trò',
@@ -228,7 +235,18 @@ const AdminUsers = () => {
           </Form.Item>
 
           <Form.Item label="Vai trò" name="role" rules={[{ required: true, message: 'Vui lòng chọn vai trò' }]}>
-            <Select options={ROLES} />
+            {getCurrentUser()?.role === 'TEACHER' ? <Select options={ROLES.filter((r) => r.value === 'STUDENT')} /> : <Select options={ROLES} />}
+          </Form.Item>
+          <Form.Item label="Lớp" name="grade" rules={[{ required: false }]}>
+            <Select
+              allowClear
+              placeholder="Chọn lớp (nếu là học sinh)"
+              options={[
+                { label: '10', value: 10 },
+                { label: '11', value: 11 },
+                { label: '12', value: 12 },
+              ]}
+            />
           </Form.Item>
           {!editingUser && (
             <>

@@ -70,6 +70,7 @@ const CauTruDeThi = () => {
     { title: 'Tổng số câu', dataIndex: 'total_questions', key: 'total_questions' },
     { title: '% Cơ bản', dataIndex: 'basic_percent', key: 'basic_percent' },
     { title: '% Nâng cao', dataIndex: 'advanced_percent', key: 'advanced_percent' },
+    { title: 'Khối/Lớp', dataIndex: 'grade', key: 'grade', render: (grade) => <span>{grade ? `Lớp ${grade}` : '-'}</span> },
     {
       title: 'Giáo viên tạo',
       dataIndex: 'teacher_id',

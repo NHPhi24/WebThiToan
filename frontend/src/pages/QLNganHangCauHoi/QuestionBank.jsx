@@ -10,6 +10,7 @@ import ImportQuestionModal from './ImportQuestionModal';
 import 'katex/dist/katex.min.css';
 import MathText from '../../utils/MathText';
 import { Search } from 'lucide-react';
+import { render } from 'katex';
 
 const QuestionBank = () => {
   const [questions, setQuestions] = useState([]);
@@ -36,6 +37,21 @@ const QuestionBank = () => {
     } finally {
       setLoading(false);
     }
+  };
+  // Lấy user hiện tại từ localStorage
+  const getCurrentUser = () => {
+    try {
+      return JSON.parse(localStorage.getItem('user') || 'null');
+    } catch {
+      return null;
+    }
+  };
+
+  const currentUser = getCurrentUser();
+  const canEditQuestion = (record) => {
+    if (!currentUser) return false;
+    if (currentUser.role === 'ADMIN') return true;
+    return record.teacher_id === currentUser.id;
   };
 
   useEffect(() => {
@@ -139,6 +155,13 @@ const QuestionBank = () => {
       render: (text) => <MathText>{text}</MathText>,
     },
     {
+      title: 'Khối/Lớp',
+      dataIndex: 'grade',
+      key: 'grade',
+      width: 80,
+      render: (grade) => <span>{grade ? `Lớp ${grade}` : 'N/A'}</span>,
+    },
+    {
       title: 'Độ khó',
       dataIndex: 'level',
       key: 'level',
@@ -169,8 +192,8 @@ const QuestionBank = () => {
       render: (_, record) => (
         <OperationColumn
           handleView={() => handleView(record.id)}
-          handleEdit={() => handleEdit(record.id)}
-          handleDelete={() => handleDelete(record.id)}
+          handleEdit={canEditQuestion(record) ? () => handleEdit(record.id) : undefined}
+          handleDelete={canEditQuestion(record) ? () => handleDelete(record.id) : undefined}
         />
       ),
     },

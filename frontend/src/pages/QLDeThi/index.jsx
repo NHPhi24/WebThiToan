@@ -1,3 +1,17 @@
+// Lấy user hiện tại từ localStorage
+const getCurrentUser = () => {
+  try {
+    return JSON.parse(localStorage.getItem('user') || 'null');
+  } catch {
+    return null;
+  }
+};
+const currentUser = getCurrentUser();
+const canEditExam = (record) => {
+  if (!currentUser) return false;
+  if (currentUser.role === 'ADMIN') return true;
+  return record.teacher_id === currentUser.id;
+};
 import React, { useEffect, useState } from 'react';
 import { Table, message, Modal, Button } from 'antd';
 import SearchInput from '../../components/SearchInput';
@@ -98,6 +112,7 @@ const QLDeThi = () => {
         return <span>{template ? template.template_name : template_id || '-'}</span>;
       },
     },
+    { title: 'Khối/Lớp', dataIndex: 'grade', key: 'grade', render: (grade) => <span>{grade ? `Lớp ${grade}` : '-'}</span> },
     {
       title: 'Giáo viên tạo',
       dataIndex: 'teacher_id',
@@ -118,7 +133,11 @@ const QLDeThi = () => {
       key: 'actions',
       width: 140,
       render: (_, record) => (
-        <OperationColumn handleView={() => handleView(record)} handleEdit={() => handleEdit(record)} handleDelete={() => handleDelete(record)} />
+        <OperationColumn
+          handleView={() => handleView(record)}
+          handleEdit={canEditExam(record) ? () => handleEdit(record) : undefined}
+          handleDelete={canEditExam(record) ? () => handleDelete(record) : undefined}
+        />
       ),
     },
   ];
@@ -151,12 +170,15 @@ const QLDeThi = () => {
         footer={null}
       >
         {modalMode === 'view' && modalData && (
-          <div>
+          <div style={{ maxHeight: 500, overflowY: 'auto' }}>
             <p>
               <b>Mã đề thi:</b> {modalData.exam_code}
             </p>
             <p>
-              <b>Template ID:</b> {modalData.template_id}
+              <b>Lớp:</b> {modalData.grade ? `Lớp ${modalData.grade}` : '-'}
+            </p>
+            <p>
+              <b>Cấu trúc đề thi:</b> {modalData.template_id}
             </p>
             <p>
               <b>Giáo viên tạo:</b>{' '}
@@ -211,10 +233,10 @@ const QLDeThi = () => {
       <Modal open={addModalOpen} onCancel={() => setAddModalOpen(false)} footer={null} title="Tạo đề thi tự động" confirmLoading={addModalLoading}>
         <AddDeThi
           loading={addModalLoading}
-          onSubmit={({ exam_code, template_id, teacher_id }) => {
+          onSubmit={({ exam_code, template_id, teacher_id, grade }) => {
             setAddModalLoading(true);
             api
-              .autoGenerateExam({ exam_code, template_id, teacher_id })
+              .autoGenerateExam({ exam_code, template_id, teacher_id, grade })
               .then((res) => {
                 const code = res.data?.exam_code;
                 message.success(code ? `Tạo đề thi thành công. Mã đề: ${code}` : 'Tạo đề thi tự động thành công');

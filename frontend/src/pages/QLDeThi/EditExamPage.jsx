@@ -100,6 +100,16 @@ const EditExamPage = () => {
           <Form.Item label="Mã đề thi" name="exam_code" rules={[{ required: true, message: 'Nhập mã đề thi' }]}>
             <Input />
           </Form.Item>
+          <Form.Item label="Lớp" name="grade" rules={[{ required: true, message: 'Chọn lớp' }]}>
+            <Select
+              placeholder="Chọn lớp"
+              options={[
+                { value: 10, label: 'Lớp 10' },
+                { value: 11, label: 'Lớp 11' },
+                { value: 12, label: 'Lớp 12' },
+              ]}
+            />
+          </Form.Item>
           <Form.Item label="Cấu trúc đề thi" name="template_id" rules={[{ required: true, message: 'Chọn cấu trúc đề thi' }]}>
             <Select disabled options={templates.map((t) => ({ value: t.id, label: t.template_name }))} />
           </Form.Item>

@@ -11,7 +11,7 @@ const api = {
   createUser: (data) => axiosClient.post('/users', data),
   updateUser: (id, data) => axiosClient.put(`/users/${id}`, data),
   deleteUser: (id) => axiosClient.delete(`/users/${id}`),
-  getAllStudents: () => axiosClient.get('/users/students'),
+  getAllStudents: (grade) => axiosClient.get('/users/students' + (grade ? `?grade=${encodeURIComponent(grade)}` : '')),
   // Kiểm tra trùng user khi import
   checkDuplicateUsers: (users) => axiosClient.post('/users/check-duplicates', { users }),
 

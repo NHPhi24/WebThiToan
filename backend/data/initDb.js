@@ -11,7 +11,8 @@ const initDb = async () => {
       role VARCHAR(10) NOT NULL,
       created_by INTEGER REFERENCES users(id),
       profile_info JSONB DEFAULT '{}',
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      grade INTEGER CHECK (grade IN (10, 11, 12))
     );
 
     CREATE TABLE IF NOT EXISTS questions (
@@ -63,7 +64,8 @@ const initDb = async () => {
       status VARCHAR(20) DEFAULT 'READY',
       manual_status_time TIMESTAMP NULL,
       exam_ids INTEGER[] DEFAULT '{}',
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      grade VARCHAR(20) NULL
     );
 
     CREATE TABLE IF NOT EXISTS session_participants (
@@ -120,25 +122,9 @@ const initDb = async () => {
   `);
 };
 
-// Tự động thêm cột nếu chưa có
-const addColumnIfNotExists = async (table, column, typeDefault) => {
-  const check = await db.query(`SELECT column_name FROM information_schema.columns WHERE table_name=$1 AND column_name=$2`, [table, column]);
-  if (check.rows.length === 0) {
-    await db.query(`ALTER TABLE ${table} ADD COLUMN ${column} ${typeDefault}`);
-    console.log(`Đã thêm cột ${column} vào ${table}`);
-  }
-};
-
-const migrateSessionParticipants = async () => {
-  await addColumnIfNotExists('session_participants', 'has_joined', 'BOOLEAN DEFAULT FALSE');
-};
-
-const migrateExamResults = async () => {
-  await addColumnIfNotExists('exam_results', 'duration_seconds', 'INTEGER DEFAULT 0');
-};
+const { runAllMigrations } = require('./migrationUtils');
 
 module.exports = async () => {
   await initDb();
-  await migrateExamResults();
-  await migrateSessionParticipants();
+  await runAllMigrations(db);
 };

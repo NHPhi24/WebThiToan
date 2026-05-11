@@ -70,7 +70,10 @@ const changePassword = async (req, res) => {
 const getUserById = async (req, res) => {
   const { id } = req.params;
   try {
-    const result = await db.query('SELECT id, username, full_name, email, role, created_by, profile_info, created_at FROM users WHERE id = $1', [id]);
+    const result = await db.query(
+      'SELECT id, username, full_name, email, role, created_by, profile_info, created_at, grade FROM users WHERE id = $1',
+      [id],
+    );
     if (result.rowCount === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -81,12 +84,18 @@ const getUserById = async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch user' });
   }
 };
-// Lấy tất cả học sinh
+// Lấy tất cả học sinh, có thể lọc theo grade
 const getAllStudents = async (req, res) => {
   try {
-    const result = await db.query(
-      "SELECT id, username, full_name, email, role, created_by, profile_info, created_at FROM users WHERE role = 'STUDENT' ORDER BY created_at DESC",
-    );
+    const { grade } = req.query;
+    let query = "SELECT id, username, full_name, email, role, created_by, profile_info, created_at, grade FROM users WHERE role = 'STUDENT'";
+    const params = [];
+    if (grade) {
+      query += ' AND grade = $1';
+      params.push(grade);
+    }
+    query += ' ORDER BY created_at DESC';
+    const result = await db.query(query, params);
     const users = result.rows.map(User.fromRow);
     res.json(users);
   } catch (error) {
@@ -102,7 +111,7 @@ const { createAuditLog } = require('../data/auditLog');
 const getAllUsers = async (req, res) => {
   try {
     const result = await db.query(
-      'SELECT id, username, full_name, email, role, created_by, profile_info, created_at FROM users ORDER BY created_at DESC',
+      'SELECT id, username, full_name, email, role, created_by, profile_info, created_at, grade FROM users ORDER BY created_at DESC',
     );
     const users = result.rows.map(User.fromRow);
     res.json(users);
@@ -113,14 +122,14 @@ const getAllUsers = async (req, res) => {
 };
 
 const createUser = async (req, res) => {
-  const { username, email, password, full_name, role, created_by, profile_info } = req.body;
+  const { username, email, password, full_name, role, created_by, profile_info, grade } = req.body;
 
   try {
     const result = await db.query(
-      `INSERT INTO users (username, password, full_name, email, role, created_by, profile_info)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING id, username, full_name, email, role, created_by, profile_info, created_at`,
-      [username, password, full_name, email, role || 'STUDENT', created_by || null, profile_info || {}],
+      `INSERT INTO users (username, password, full_name, email, role, created_by, profile_info, grade)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING id, username, full_name, email, role, created_by, profile_info, created_at, grade`,
+      [username, password, full_name, email, role || 'STUDENT', created_by || null, profile_info || {}, grade],
     );
 
     await createAuditLog({
@@ -130,7 +139,7 @@ const createUser = async (req, res) => {
       resource_type: 'user',
       resource_id: result.rows[0].id?.toString() || null,
       resource_name: result.rows[0].username,
-      details: { username, email, full_name, role, created_by, profile_info },
+      details: { username, email, full_name, role, created_by, profile_info, grade },
     });
 
     res.status(201).json(result.rows[0]);
@@ -142,7 +151,7 @@ const createUser = async (req, res) => {
 
 const updateUser = async (req, res) => {
   const { id } = req.params;
-  const { username, email, password, full_name, role, profile_info } = req.body;
+  const { username, email, password, full_name, role, profile_info, grade } = req.body;
 
   try {
     const fields = [];
@@ -169,9 +178,14 @@ const updateUser = async (req, res) => {
       fields.push(`role=$${index++}`);
       values.push(role);
     }
+
     if (profile_info !== undefined) {
       fields.push(`profile_info=$${index++}`);
       values.push(profile_info);
+    }
+    if (grade !== undefined) {
+      fields.push(`grade=$${index++}`);
+      values.push(grade);
     }
 
     if (fields.length === 0) {
@@ -181,7 +195,7 @@ const updateUser = async (req, res) => {
     values.push(id);
 
     const result = await db.query(
-      `UPDATE users SET ${fields.join(', ')} WHERE id = $${index} RETURNING id, username, full_name, email, role, created_by, profile_info, created_at`,
+      `UPDATE users SET ${fields.join(', ')} WHERE id = $${index} RETURNING id, username, full_name, email, role, created_by, profile_info, created_at, grade`,
       values,
     );
 
@@ -237,7 +251,7 @@ const loginUser = async (req, res) => {
   const { username, password } = req.body;
   try {
     const result = await db.query(
-      'SELECT id, username, full_name, email, role, created_by, profile_info, created_at FROM users WHERE username = $1 AND password = $2',
+      'SELECT id, username, full_name, email, role, created_by, profile_info, created_at, grade FROM users WHERE username = $1 AND password = $2',
       [username, password],
     );
     if (result.rowCount === 0) {

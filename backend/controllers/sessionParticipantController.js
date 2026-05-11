@@ -43,7 +43,7 @@ exports.getUsersBySession = async (req, res) => {
     // Lấy danh sách user đã đăng ký và trạng thái đã nộp bài hay chưa
     const result = await db.query(
       `
-      SELECT sp.*, u.full_name, u.email,
+      SELECT sp.*, u.full_name, u.email, u.grade,
         sp.has_joined
       FROM session_participants sp
       JOIN users u ON sp.user_id = u.id
@@ -79,7 +79,7 @@ exports.removeParticipant = async (req, res) => {
 exports.getAllSessionParticipants = async (req, res) => {
   try {
     const result = await db.query(`
-      SELECT sp.*, u.full_name, u.email, es.session_name
+      SELECT sp.*, u.full_name, u.email, u.grade, es.session_name
       FROM session_participants sp
       JOIN users u ON sp.user_id = u.id
       JOIN exam_sessions es ON sp.session_id = es.id
@@ -132,7 +132,24 @@ exports.register = async (req, res) => {
   try {
     const now = new Date();
     const results = [];
+    // Lấy grade của ca thi
+    const sessionRes = await db.query('SELECT grade FROM exam_sessions WHERE id = $1', [session_id]);
+    if (sessionRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Không tìm thấy ca thi' });
+    }
+    const sessionGrade = sessionRes.rows[0].grade;
     for (const uid of userIds) {
+      // Lấy grade của user
+      const userRes = await db.query('SELECT grade FROM users WHERE id = $1', [uid]);
+      if (userRes.rows.length === 0) {
+        results.push({ user_id: uid, status: 'user_not_found' });
+        continue;
+      }
+      const userGrade = userRes.rows[0].grade;
+      if (!userGrade || !sessionGrade || String(userGrade) !== String(sessionGrade)) {
+        results.push({ user_id: uid, status: 'grade_mismatch' });
+        continue;
+      }
       // Kiểm tra đã đăng ký chưa
       const check = await db.query('SELECT * FROM session_participants WHERE session_id = $1 AND user_id = $2', [session_id, uid]);
       if (check.rows.length > 0) {

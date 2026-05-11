@@ -112,6 +112,7 @@ const QLCaThi = ({ user, isLoggedIn }) => {
         ...res.data,
         start_time: dayjs(res.data.start_time),
         exam_ids: res.data.exam_ids || [],
+        grade: res.data.grade || undefined,
       });
     } catch {
       message.error('Không thể tải chi tiết ca thi');
@@ -149,12 +150,14 @@ const QLCaThi = ({ user, isLoggedIn }) => {
         await apiService.updateExamSession(modalData.id, {
           ...values,
           start_time: values.start_time.toISOString(),
+          grade: values.grade,
         });
         message.success('Cập nhật thành công');
       } else if (modalMode === 'add') {
         await apiService.createExamSession({
           ...values,
           start_time: values.start_time.toISOString(),
+          grade: values.grade,
         });
         message.success('Tạo ca thi thành công');
       }
@@ -169,6 +172,12 @@ const QLCaThi = ({ user, isLoggedIn }) => {
   };
 
   const canEdit = isLoggedIn && (user?.role === 'TEACHER' || user?.role === 'ADMIN');
+  // Chỉ cho phép giáo viên chỉnh sửa ca thi do mình tạo, admin được sửa tất cả
+  const canEditSession = (record) => {
+    if (!canEdit) return false;
+    if (user?.role === 'ADMIN') return true;
+    return record.teacher_id === user?.id;
+  };
   // Lấy danh sách các ca thi mà học sinh đã đăng ký
   const [registeredSessions, setRegisteredSessions] = useState([]);
   useEffect(() => {
@@ -203,6 +212,7 @@ const QLCaThi = ({ user, isLoggedIn }) => {
       dataIndex: 'duration',
       key: 'duration',
     },
+    { title: 'Khối/Lớp', dataIndex: 'grade', key: 'grade', render: (grade) => grade || '-' },
     {
       title: 'Giáo viên tạo',
       dataIndex: 'teacher_id',
@@ -247,7 +257,7 @@ const QLCaThi = ({ user, isLoggedIn }) => {
               <Eye size={16} />
             </Button>
           </Tooltip>
-          {canEdit && (
+          {canEditSession(record) && (
             <>
               <Tooltip title="Chỉnh sửa">
                 <Button size="small" onClick={() => handleEdit(record.id)} shape="circle" type="default" disabled={record.status !== 'READY'}>
@@ -294,6 +304,7 @@ const QLCaThi = ({ user, isLoggedIn }) => {
           <Table
             columns={[
               { title: 'Tên ca thi', dataIndex: 'session_name', key: 'session_name' },
+              { title: 'Khối/Lớp', dataIndex: 'grade', key: 'grade', render: (text) => text || '-' },
               {
                 title: 'Thời gian bắt đầu',
                 dataIndex: 'start_time',

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { List, Card, Button, Tag, message } from 'antd';
 import { useNavigate } from 'react-router-dom';
+import { ReloadOutlined } from '@ant-design/icons';
 import api from '../../services/api';
 
 const getCurrentUser = () => {
@@ -11,7 +12,7 @@ const getCurrentUser = () => {
   }
 };
 
-const LamBaiThi = () => {
+const LamBaiThi = ({ setSidebarCollapsed }) => {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -39,7 +40,8 @@ const LamBaiThi = () => {
   };
 
   const startQuiz = (session) => {
-    // Điều hướng sang trang làm bài, truyền session_id và exam_id đầu tiên (nếu có)
+    // Đóng sidebar trước khi chuyển trang
+    if (typeof setSidebarCollapsed === 'function') setSidebarCollapsed(true);
     if (session.exam_ids && session.exam_ids.length > 0) {
       navigate(`/lam-bai-thi/${session.id}?exam_id=${session.exam_ids[0]}`);
     } else {
@@ -49,7 +51,10 @@ const LamBaiThi = () => {
 
   return (
     <div>
-      <h1>Ca thi đang diễn ra bạn được phép làm</h1>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <h1>Ca thi đang diễn ra bạn được phép làm</h1>
+        <ReloadOutlined onClick={fetchSessions} style={{ fontSize: 20, cursor: 'pointer' }} />
+      </div>
       <List
         loading={loading}
         dataSource={sessions}
@@ -60,7 +65,7 @@ const LamBaiThi = () => {
               actions={[
                 <Button
                   type="primary"
-                  onClick={() => navigate(`/lam-bai-thi/${session.id}?exam_id=${session.exam_ids?.[0]}`)}
+                  onClick={() => startQuiz(session)}
                   disabled={!session.exam_ids || session.exam_ids.length === 0 || session.register_status !== 20}
                 >
                   Bắt đầu thi

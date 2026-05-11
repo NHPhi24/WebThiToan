@@ -121,6 +121,7 @@ const QLDangKyCaThi = () => {
   const columns = [
     { title: 'Tên người đăng ký', dataIndex: 'full_name', key: 'full_name' },
     { title: 'Email', dataIndex: 'email', key: 'email' },
+    { title: 'Khối', dataIndex: 'grade', key: 'grade', align: 'center' },
     {
       title: 'Thời gian đăng ký',
       dataIndex: 'registered_at',
@@ -159,6 +160,7 @@ const QLDangKyCaThi = () => {
                         email: res.data.email,
                         disableUsername: true,
                         profile_info: res.data.profile_info || {},
+                        grade: res.data.grade,
                       });
                     } catch {
                       setEditUser({
@@ -168,6 +170,7 @@ const QLDangKyCaThi = () => {
                         email: record.email,
                         disableUsername: true,
                         profile_info: record.profile_info || {},
+                        grade: record.grade,
                       });
                     }
                   }
@@ -243,6 +246,7 @@ const QLDangKyCaThi = () => {
             <Descriptions.Item label="Tên đăng nhập">{viewUser.username}</Descriptions.Item>
             <Descriptions.Item label="Họ tên">{viewUser.full_name}</Descriptions.Item>
             <Descriptions.Item label="Email">{viewUser.email}</Descriptions.Item>
+            <Descriptions.Item label="Khối">{viewUser.grade}</Descriptions.Item>
             <Descriptions.Item label="Vai trò">{viewUser.role}</Descriptions.Item>
             <Descriptions.Item label="Ngày tạo">{viewUser.created_at ? new Date(viewUser.created_at).toLocaleString() : ''}</Descriptions.Item>
             <Descriptions.Item label="Thông tin bổ sung">

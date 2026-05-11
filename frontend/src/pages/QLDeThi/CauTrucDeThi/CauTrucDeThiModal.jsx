@@ -24,9 +24,10 @@ const CauTrucDeThiModal = ({ open, onClose, onSuccess, editRecord }) => {
       form.setFieldsValue(editRecord);
     } else if (open) {
       form.setFieldsValue({
-        total_questions: 20,
+        total_questions: 10,
         basic_percent: 80,
         advanced_percent: 20,
+        grade: 10,
       });
     }
   }, [editRecord, open, form]);
@@ -86,6 +87,19 @@ const CauTrucDeThiModal = ({ open, onClose, onSuccess, editRecord }) => {
         </Form.Item>
         <Form.Item label="Tên cấu trúc" name="template_name" rules={[{ required: true, message: 'Vui lòng nhập tên cấu trúc' }]}>
           <Input placeholder="Nhập tên cấu trúc đề thi" />
+        </Form.Item>
+        <Form.Item label="Lớp" name="grade" rules={[{ required: true, message: 'Chọn lớp' }]}>
+          <Input.Group compact>
+            <select
+              style={{ width: '100%', height: 32, borderRadius: 4, border: '1px solid #d9d9d9' }}
+              value={form.getFieldValue('grade')}
+              onChange={(e) => form.setFieldsValue({ grade: Number(e.target.value) })}
+            >
+              <option value={10}>Lớp 10</option>
+              <option value={11}>Lớp 11</option>
+              <option value={12}>Lớp 12</option>
+            </select>
+          </Input.Group>
         </Form.Item>
         <Form.Item label="Tổng số câu" name="total_questions" rules={[{ required: true, message: 'Vui lòng nhập tổng số câu' }]}>
           <InputNumber min={1} style={{ width: '100%' }} placeholder="Nhập tổng số câu" />

@@ -11,10 +11,19 @@ const AddStudentToSessionModal = ({ open, onClose, sessionId, onSuccess, editUse
   const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
   const [activeTab, setActiveTab] = useState('1');
+  const [sessionGrade, setSessionGrade] = useState('');
 
   useEffect(() => {
     if (open) {
-      api.getAllStudents().then((res) => setUsers(res.data || []));
+      // Lấy grade của ca thi
+      api.getExamSessionById(sessionId).then((res) => {
+        const grade = res.data.grade;
+        setSessionGrade(grade);
+        api.getAllStudents(grade).then((res2) => setUsers(res2.data || []));
+        if (!editUser) {
+          form.setFieldsValue({ grade });
+        }
+      });
       setSelectedUserId(null);
       if (editUser) {
         setActiveTab('2');
@@ -24,13 +33,14 @@ const AddStudentToSessionModal = ({ open, onClose, sessionId, onSuccess, editUse
           email: editUser.email,
           password: '',
           confirmPassword: '',
+          grade: editUser.grade,
         });
       } else {
         setActiveTab('1');
         form.resetFields();
       }
     }
-  }, [open, form, editUser]);
+  }, [open, form, editUser, sessionId]);
 
   // Tab 1: Chọn học sinh đã có (nhiều học sinh)
   const handleAddExisting = async () => {
@@ -64,12 +74,13 @@ const AddStudentToSessionModal = ({ open, onClose, sessionId, onSuccess, editUse
           full_name: values.full_name,
           email: values.email,
           password: values.password || undefined,
+          grade: values.grade,
         });
         userId = editUser.id;
         message.success('Cập nhật thông tin học sinh thành công!');
       } else {
         // Tạo học sinh mới
-        const res = await api.createUser({ ...values, role: 'STUDENT' });
+        const res = await api.createUser({ ...values, role: 'STUDENT', grade: sessionGrade });
         userId = res.data.id;
         message.success('Tạo học sinh thành công!');
       }
@@ -122,6 +133,9 @@ const AddStudentToSessionModal = ({ open, onClose, sessionId, onSuccess, editUse
             </Form.Item>
             <Form.Item name="email" label="Email">
               <Input />
+            </Form.Item>
+            <Form.Item name="grade" label="Lớp" rules={[{ required: true, message: 'Nhập lớp!' }]}>
+              <Input disabled={!editUser} value={sessionGrade} />
             </Form.Item>
             {!editUser && (
               <>

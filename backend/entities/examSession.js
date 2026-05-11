@@ -1,5 +1,5 @@
 class ExamSession {
-  constructor({ id, session_name, start_time, duration, teacher_id, status, manual_status_time, created_at, exam_ids }) {
+  constructor({ id, session_name, start_time, duration, teacher_id, status, manual_status_time, created_at, exam_ids, grade }) {
     this.id = id;
     this.session_name = session_name;
     this.start_time = start_time;
@@ -9,6 +9,7 @@ class ExamSession {
     this.manual_status_time = manual_status_time;
     this.exam_ids = exam_ids;
     this.created_at = created_at;
+    this.grade = grade;
   }
 
   static fromRow(row) {

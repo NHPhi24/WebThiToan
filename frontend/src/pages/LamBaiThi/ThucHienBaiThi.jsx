@@ -1,3 +1,5 @@
+import VoHieu from './VoHieu';
+import { Modal } from 'antd';
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Card, Button, Radio, Progress, message } from 'antd';
@@ -20,12 +22,45 @@ function getRandomExamId(examIds) {
   return examIds[idx];
 }
 
-const ThucHienBaiThi = () => {
+const ThucHienBaiThi = ({ setSidebarCollapsed }) => {
+  // Đảm bảo sidebar luôn đóng khi vào trang này, kể cả F5
+  useEffect(() => {
+    if (typeof setSidebarCollapsed === 'function') setSidebarCollapsed(true);
+    // Lưu trạng thái vào localStorage để giữ khi F5
+    localStorage.setItem('sidebarCollapsed', 'true');
+    return () => {
+      // Khi rời trang này, có thể mở lại sidebar nếu muốn (tùy logic)
+      // localStorage.removeItem('sidebarCollapsed');
+    };
+  }, [setSidebarCollapsed]);
   const { sessionId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
   const user = getCurrentUser();
   const [session, setSession] = useState(null);
+  // Trạng thái khoá bài khi chuyển tab
+  const [locked, setLocked] = useState(false);
+  const [lockCountdown, setLockCountdown] = useState(120); // 2 phút
+  const [showUnlockBtn, setShowUnlockBtn] = useState(false);
+  // Khi vi phạm (chuyển tab/cửa sổ), khoá bài và bắt đầu đếm ngược
+  const handleViPham = () => {
+    if (!locked) {
+      setLocked(true);
+      setLockCountdown(5);
+      setShowUnlockBtn(false);
+    }
+  };
+
+  // Đếm ngược khi bị khoá
+  useEffect(() => {
+    if (!locked) return;
+    if (lockCountdown <= 0) {
+      setShowUnlockBtn(true);
+      return;
+    }
+    const timer = setTimeout(() => setLockCountdown((t) => t - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [locked, lockCountdown]);
   const [examId, setExamId] = useState(null);
   const [questions, setQuestions] = useState([]);
   const [examCode, setExamCode] = useState('');
@@ -220,115 +255,139 @@ const ThucHienBaiThi = () => {
   const q = questions[current];
 
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', position: 'relative' }}>
-      {/* Main content */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <h2>{session.session_name}</h2>
-          <ReloadOutlined onClick={reloadExam} title="Tải lại bài thi" />
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-          <div>
-            Mã đề: <b>{examCode}</b>
-          </div>
-          <div>
-            Thời gian còn lại: <b>{formatTime(timeLeft)}</b>
-          </div>
-        </div>
-        <Progress percent={((current + 1) / questions.length) * 100} showInfo={false} />
-        <Card style={{ marginTop: 16 }}>
-          <div style={{ marginBottom: 16 }}>
-            <b>
-              Câu {current + 1}/{questions.length}:
-            </b>
-            <div style={{ marginTop: 8 }}>
-              <MathText>{q.content}</MathText>
-            </div>
-          </div>
-          <Radio.Group value={answers[q.id]} onChange={(e) => handleAnswer(q.id, e.target.value)}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <Radio value="A">
-                <b>A.</b> <MathText>{q.ans_a}</MathText>
-              </Radio>
-              <Radio value="B">
-                <b>B.</b> <MathText>{q.ans_b}</MathText>
-              </Radio>
-              <Radio value="C">
-                <b>C.</b> <MathText>{q.ans_c}</MathText>
-              </Radio>
-              <Radio value="D">
-                <b>D.</b> <MathText>{q.ans_d}</MathText>
-              </Radio>
-            </div>
-          </Radio.Group>
-        </Card>
-        <div style={{ marginTop: 24, display: 'flex', justifyContent: 'space-between' }}>
-          <Button onClick={() => setCurrent((c) => Math.max(0, c - 1))} disabled={current === 0}>
-            Câu trước
-          </Button>
-          {current === questions.length - 1 ? (
-            <Button type="primary" onClick={handleSubmit} loading={submitting}>
-              Nộp bài
-            </Button>
-          ) : (
-            <Button type="primary" onClick={() => setCurrent((c) => Math.min(questions.length - 1, c + 1))}>
-              Câu tiếp theo
+    <>
+      <VoHieu onViPham={handleViPham} />
+      <Modal open={locked} closable={false} footer={null} centered maskClosable={false}>
+        <div style={{ textAlign: 'center' }}>
+          <h2>Bài thi đã bị khoá do bạn chuyển tab hoặc cửa sổ!</h2>
+          <p>
+            Vui lòng chờ <b>{lockCountdown > 0 ? lockCountdown : 0}</b> giây để tiếp tục làm bài.
+          </p>
+          {showUnlockBtn && (
+            <Button type="primary" onClick={() => setLocked(false)}>
+              Xác nhận tiếp tục làm bài
             </Button>
           )}
         </div>
-      </div>
-      {/* Sidebar câu hỏi */}
+      </Modal>
       <div
         style={{
-          width: 120,
-          marginLeft: 32,
-          background: '#fff',
-          border: '1px solid #eee',
-          borderRadius: 8,
-          padding: 16,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-          position: 'sticky',
-          top: 24,
-          height: 'fit-content',
-          minHeight: 120,
           display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 8,
+          alignItems: 'flex-start',
+          position: 'relative',
+          pointerEvents: locked ? 'none' : 'auto',
+          opacity: locked ? 0.5 : 1,
         }}
       >
-        <div style={{ fontWeight: 600, marginBottom: 8 }}>Danh sách câu hỏi</div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
-          {questions.map((ques, idx) => {
-            // Chỉ tô xanh khi đã chọn đáp án (A/B/C/D), không tô nếu undefined/null/""
-            const answered = ['A', 'B', 'C', 'D'].includes(answers[ques.id]);
-            const isCurrent = idx === current;
-            return (
-              <button
-                key={ques.id}
-                onClick={() => setCurrent(idx)}
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: '50%',
-                  border: isCurrent ? '2px solid #1890ff' : '1px solid #ccc',
-                  background: answered ? '#85b4e3' : '#fff',
-                  color: isCurrent ? '#1890ff' : '#333',
-                  fontWeight: answered ? 600 : 400,
-                  cursor: 'pointer',
-                  outline: 'none',
-                  boxShadow: isCurrent ? '0 0 0 2px #bae7ff' : 'none',
-                  transition: 'all 0.2s',
-                }}
-                title={`Câu ${idx + 1}`}
-              >
-                {idx + 1}
-              </button>
-            );
-          })}
+        {/* Main content */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <h2>{session.session_name}</h2>
+            <ReloadOutlined onClick={reloadExam} title="Tải lại bài thi" />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+            <div>
+              Mã đề: <b>{examCode}</b>
+            </div>
+            <div>
+              Thời gian còn lại: <b>{formatTime(timeLeft)}</b>
+            </div>
+          </div>
+          <Progress percent={((current + 1) / questions.length) * 100} showInfo={false} />
+          <Card style={{ marginTop: 16 }}>
+            <div style={{ marginBottom: 16 }}>
+              <b>
+                Câu {current + 1}/{questions.length}:
+              </b>
+              <div style={{ marginTop: 8 }}>
+                <MathText>{q.content}</MathText>
+              </div>
+            </div>
+            <Radio.Group value={answers[q.id]} onChange={(e) => handleAnswer(q.id, e.target.value)}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <Radio value="A">
+                  <b>A.</b> <MathText>{q.ans_a}</MathText>
+                </Radio>
+                <Radio value="B">
+                  <b>B.</b> <MathText>{q.ans_b}</MathText>
+                </Radio>
+                <Radio value="C">
+                  <b>C.</b> <MathText>{q.ans_c}</MathText>
+                </Radio>
+                <Radio value="D">
+                  <b>D.</b> <MathText>{q.ans_d}</MathText>
+                </Radio>
+              </div>
+            </Radio.Group>
+          </Card>
+          <div style={{ marginTop: 24, display: 'flex', justifyContent: 'space-between' }}>
+            <Button onClick={() => setCurrent((c) => Math.max(0, c - 1))} disabled={current === 0}>
+              Câu trước
+            </Button>
+            {current === questions.length - 1 ? (
+              <Button type="primary" onClick={handleSubmit} loading={submitting}>
+                Nộp bài
+              </Button>
+            ) : (
+              <Button type="primary" onClick={() => setCurrent((c) => Math.min(questions.length - 1, c + 1))}>
+                Câu tiếp theo
+              </Button>
+            )}
+          </div>
+        </div>
+        {/* Sidebar câu hỏi */}
+        <div
+          style={{
+            width: 120,
+            marginLeft: 32,
+            background: '#fff',
+            border: '1px solid #eee',
+            borderRadius: 8,
+            padding: 16,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+            position: 'sticky',
+            top: 24,
+            height: 'fit-content',
+            minHeight: 120,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 8,
+          }}
+        >
+          <div style={{ fontWeight: 600, marginBottom: 8 }}>Danh sách câu hỏi</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
+            {questions.map((ques, idx) => {
+              // Chỉ tô xanh khi đã chọn đáp án (A/B/C/D), không tô nếu undefined/null/""
+              const answered = ['A', 'B', 'C', 'D'].includes(answers[ques.id]);
+              const isCurrent = idx === current;
+              return (
+                <button
+                  key={ques.id}
+                  onClick={() => setCurrent(idx)}
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: '50%',
+                    border: isCurrent ? '2px solid #1890ff' : '1px solid #ccc',
+                    background: answered ? '#85b4e3' : '#fff',
+                    color: isCurrent ? '#1890ff' : '#333',
+                    fontWeight: answered ? 600 : 400,
+                    cursor: 'pointer',
+                    outline: 'none',
+                    boxShadow: isCurrent ? '0 0 0 2px #bae7ff' : 'none',
+                    transition: 'all 0.2s',
+                  }}
+                  title={`Câu ${idx + 1}`}
+                >
+                  {idx + 1}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 

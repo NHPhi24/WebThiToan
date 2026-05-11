@@ -11,6 +11,7 @@ const USER_HEADERS = [
   'Họ và tên', // full_name
   'Email', // email
   'Vai trò', // role
+  'Khối', // grade
 ];
 
 const USER_FIELD_MAP = {
@@ -20,9 +21,10 @@ const USER_FIELD_MAP = {
   'Họ và tên': 'full_name',
   Email: 'email',
   'Vai trò': 'role',
+  Khối: 'grade',
 };
 
-const USER_REQUIRED = ['username', 'password', 'confirm_password', 'full_name', 'role'];
+const USER_REQUIRED = ['username', 'password', 'confirm_password', 'full_name', 'role', 'grade'];
 
 const USER_COLUMNS = [
   { title: 'Tên đăng nhập', dataIndex: 'username' },
@@ -31,6 +33,7 @@ const USER_COLUMNS = [
   { title: 'Họ và tên', dataIndex: 'full_name' },
   { title: 'Email', dataIndex: 'email' },
   { title: 'Vai trò', dataIndex: 'role' },
+  { title: 'Khối', dataIndex: 'grade' },
 ];
 
 const ImportUsers = ({ visible, onClose, onImported }) => {
@@ -63,8 +66,10 @@ const ImportUsers = ({ visible, onClose, onImported }) => {
         Object.entries(USER_FIELD_MAP).forEach(([header, key]) => {
           if (key === 'role') {
             obj[key] = (row[header] || '').toUpperCase();
+          } else if (key === 'grade') {
+            obj[key] = row[header] !== undefined && row[header] !== null && row[header] !== '' ? Number(row[header]) : '';
           } else {
-            obj[key] = row[header] || '';
+            obj[key] = row[header];
           }
         });
         return obj;
@@ -81,6 +86,14 @@ const ImportUsers = ({ visible, onClose, onImported }) => {
         // So khớp mật khẩu và xác nhận mật khẩu
         if (row['password'] !== row['confirm_password']) {
           errors.push({ row: idx + 2, message: 'Mật khẩu và xác nhận mật khẩu không khớp' });
+        }
+        // Kiểm tra grade hợp lệ nếu là học sinh
+        if (row.role === 'STUDENT') {
+          if (row.grade === '' || row.grade === undefined || row.grade === null) {
+            errors.push({ row: idx + 2, message: 'Thiếu trường Khối đối với học sinh' });
+          } else if (isNaN(row.grade) || ![10, 11, 12].includes(Number(row.grade))) {
+            errors.push({ row: idx + 2, message: 'Khối phải là 10, 11 hoặc 12 đối với học sinh' });
+          }
         }
       });
       // Kiểm tra trùng username/email với CSDL

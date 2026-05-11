@@ -20,6 +20,7 @@ import XemKetQuaThi from './pages/KetQuaThi/XemKetQuaThi.jsx';
 import EditExamPage from './pages/QLDeThi/EditExamPage.jsx';
 // Components
 import Sidebar from './components/Sidebar.jsx';
+import { useMatch } from 'react-router-dom';
 import Header from './components/Header.jsx';
 import '../src/AppHeader.css';
 
@@ -27,16 +28,26 @@ import '../src/AppHeader.css';
 const { Content } = Layout;
 
 const AppLayout = ({ user, isLoggedIn, setUser, setIsLoggedIn }) => {
-  const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false);
+  // Đọc trạng thái sidebar từ localStorage để giữ khi F5
+  const [sidebarCollapsed, setSidebarCollapsed] = React.useState(() => {
+    const stored = localStorage.getItem('sidebarCollapsed');
+    return stored === 'true';
+  });
+  // Đồng bộ khi thay đổi
+  React.useEffect(() => {
+    localStorage.setItem('sidebarCollapsed', sidebarCollapsed ? 'true' : 'false');
+  }, [sidebarCollapsed]);
   const handleToggleSidebar = () => setSidebarCollapsed((c) => !c);
+  // Ẩn sidebar khi đang làm bài thi
+  const matchDoingExam = useMatch('/lam-bai-thi/:sessionId');
   return (
     <div>
       <Header user={user} onToggleSidebar={handleToggleSidebar} sidebarCollapsed={sidebarCollapsed} />
-      <Sidebar user={user} collapsed={sidebarCollapsed} />
+      {!matchDoingExam && <Sidebar user={user} collapsed={sidebarCollapsed} />}
       <div
         className="body-with-header"
         style={{
-          marginLeft: sidebarCollapsed ? 0 : 260,
+          marginLeft: !matchDoingExam && !sidebarCollapsed ? 260 : 0,
           background: '#f0f2f5',
           minHeight: '100vh',
           transition: 'margin-left 0.2s',
@@ -53,8 +64,8 @@ const AppLayout = ({ user, isLoggedIn, setUser, setIsLoggedIn }) => {
               <Route path="qldangkycathi/:id" element={<QLDangKyCaThi user={user} isLoggedIn={isLoggedIn} />} />
             </Route>
             <Route path="/lam-bai-thi">
-              <Route path="" element={<LamBaiThi user={user} isLoggedIn={isLoggedIn} />} />
-              <Route path=":sessionId" element={<ThucHienBaiThi user={user} isLoggedIn={isLoggedIn} />} />
+              <Route path="" element={<LamBaiThi user={user} isLoggedIn={isLoggedIn} setSidebarCollapsed={setSidebarCollapsed} />} />
+              <Route path=":sessionId" element={<ThucHienBaiThi user={user} isLoggedIn={isLoggedIn} setSidebarCollapsed={setSidebarCollapsed} />} />
             </Route>
             <Route path="/qldethi">
               <Route path="" element={isLoggedIn && (user?.role === 'TEACHER' || user?.role === 'ADMIN') ? <QLDeThi /> : <NoAccess />} />

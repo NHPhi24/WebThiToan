@@ -24,14 +24,23 @@ const autoGenerateExam = async (req, res) => {
     const total = parseInt(template.total_questions);
     const basicCount = Math.round((template.basic_percent / 100) * total);
     const advancedCount = total - basicCount;
+    const grade = template.grade;
 
-    // Lấy câu hỏi
-    const basicQuestionsResult = await client.query('SELECT * FROM questions WHERE level = $1 ORDER BY RANDOM() LIMIT $2', ['0', basicCount]);
-    const advancedQuestionsResult = await client.query('SELECT * FROM questions WHERE level = $1 ORDER BY RANDOM() LIMIT $2', ['1', advancedCount]);
+    // Lấy câu hỏi theo đúng lớp (grade)
+    const basicQuestionsResult = await client.query('SELECT * FROM questions WHERE level = $1 AND grade = $2 ORDER BY RANDOM() LIMIT $3', [
+      '0',
+      grade,
+      basicCount,
+    ]);
+    const advancedQuestionsResult = await client.query('SELECT * FROM questions WHERE level = $1 AND grade = $2 ORDER BY RANDOM() LIMIT $3', [
+      '1',
+      grade,
+      advancedCount,
+    ]);
     const questions = [...basicQuestionsResult.rows, ...advancedQuestionsResult.rows];
     if (questions.length < total) {
       await client.query('ROLLBACK');
-      return res.status(400).json({ error: `Không đủ câu hỏi (Cần ${total}, có ${questions.length})` });
+      return res.status(400).json({ error: `Không đủ câu hỏi lớp ${grade} (Cần ${total}, có ${questions.length})` });
     }
 
     // Kiểm tra mã đề
@@ -41,11 +50,12 @@ const autoGenerateExam = async (req, res) => {
       return res.status(400).json({ error: 'Mã đề đã tồn tại' });
     }
 
-    // Tạo exam
-    const examResult = await client.query('INSERT INTO exams (exam_code, template_id, teacher_id) VALUES ($1, $2, $3) RETURNING id', [
+    // Tạo exam, lưu cả grade
+    const examResult = await client.query('INSERT INTO exams (exam_code, template_id, teacher_id, grade) VALUES ($1, $2, $3, $4) RETURNING id', [
       e_code,
       t_id,
       tc_id,
+      grade,
     ]);
     const exam = examResult.rows[0];
 

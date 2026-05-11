@@ -14,32 +14,66 @@ const statusOptions = EXAM_SESSION_STATUS.map((status) => ({
 const AddExamSessionModal = ({ open, onCancel, onOk, loading, user, editData }) => {
   const [form] = Form.useForm();
   const [examOptions, setExamOptions] = React.useState([]);
+  const [allExams, setAllExams] = React.useState([]);
   const { fullName: teacherName } = useTeacherFullName(user?.id);
   // Xác định mode dựa vào editData
   const isEdit = !!(editData && editData.id);
 
+  // Fetch toàn bộ đề thi một lần khi mở modal
+  React.useEffect(() => {
+    if (open && allExams.length === 0) {
+      api.getAllExams().then((res) => {
+        setAllExams(res.data || []);
+      });
+    }
+  }, [open, allExams.length]);
+
+  // Hàm lọc đề thi theo grade
+  const filterExamsByGrade = (grade) => {
+    if (!grade) {
+      setExamOptions([]);
+      form.setFieldsValue({ exam_ids: [] });
+      return;
+    }
+    const filtered = (allExams || []).filter((e) => String(e.grade) === String(grade));
+    setExamOptions(filtered.map((e) => ({ label: `${e.exam_code} (ID: ${e.id})`, value: e.id })));
+    // Nếu các exam_ids hiện tại không hợp lệ thì reset
+    const currentExamIds = form.getFieldValue('exam_ids') || [];
+    const validIds = filtered.map((e) => e.id);
+    if (currentExamIds.some((id) => !validIds.includes(id))) {
+      form.setFieldsValue({ exam_ids: [] });
+    }
+  };
+
+  // Khi mở modal hoặc editData thay đổi, set lại form và lọc đề thi
   React.useEffect(() => {
     if (open) {
-      if (examOptions.length === 0) {
-        api.getAllExams().then((res) => {
-          setExamOptions((res.data || []).map((e) => ({ label: `${e.exam_code} (ID: ${e.id})`, value: e.id })));
-        });
-      }
+      let grade = null;
       if (isEdit && editData) {
+        grade = editData.grade;
         form.setFieldsValue({
           ...editData,
           start_time: dayjs(editData.start_time),
           exam_ids: editData.exam_ids || [],
         });
       } else if (!isEdit && user) {
+        grade = form.getFieldValue('grade');
         const defaultStart = dayjs().add(30, 'minute');
         form.setFieldsValue({
           teacher_id: user.id,
           start_time: defaultStart,
         });
       }
+      filterExamsByGrade(grade);
     }
-  }, [open, user, form, isEdit, editData, examOptions.length]);
+    // eslint-disable-next-line
+  }, [open, user, form, isEdit, editData, allExams]);
+
+  // Khi đổi grade thì lọc lại đề thi
+  const handleGradeChange = (grade) => {
+    filterExamsByGrade(grade);
+  };
+          
 
   const handleOk = async () => {
     try {
@@ -107,6 +141,17 @@ const AddExamSessionModal = ({ open, onCancel, onOk, loading, user, editData }) 
         </Form.Item>
         <Form.Item name="teacher_id" initialValue={user?.id} hidden>
           <Input />
+        </Form.Item>
+        <Form.Item label="Lớp" name="grade" rules={[{ required: true, message: 'Chọn lớp' }]}>
+         <Select
+            options={[
+              { label: '10', value: '10' },
+              { label: '11', value: '11' },
+              { label: '12', value: '12' },
+            ]}
+            placeholder="Chọn lớp"
+            onChange={handleGradeChange}
+          />
         </Form.Item>
         <Form.Item label="Chọn đề thi" name="exam_ids" rules={[{ required: true, message: 'Chọn ít nhất 1 đề thi' }]}>
           <Select

@@ -16,6 +16,7 @@ const headers = [
   'Đáp án đúng', // correct_ans
   'Giải thích', // explanation
   'Độ khó', // level
+  'Khối lớp', // grade
 ];
 
 // Map trường tiếng Việt về trường DB (có ID giáo viên)
@@ -29,6 +30,7 @@ const fieldMap = {
   'Đáp án đúng': 'correct_ans',
   'Giải thích': 'explanation',
   'Độ khó': 'level',
+  'Khối lớp': 'grade',
 };
 
 const ImportQuestionModal = ({ visible, onClose, onImport }) => {
@@ -103,7 +105,10 @@ const ImportQuestionModal = ({ visible, onClose, onImport }) => {
         String(row.correct_ans).trim() === '' ||
         row.level === undefined ||
         row.level === null ||
-        row.level === ''
+        row.level === '' ||
+        row.grade === undefined ||
+        row.grade === null ||
+        row.grade === ''
       ) {
         errors.push({ row: idx + 1, message: 'Thiếu trường bắt buộc' });
         return;
@@ -111,6 +116,10 @@ const ImportQuestionModal = ({ visible, onClose, onImport }) => {
       // Kiểm tra level phải là số
       if (isNaN(Number(row.level))) {
         errors.push({ row: idx + 1, message: 'Độ khó phải là số (0 hoặc 1)' });
+      }
+      // Kiểm tra grade phải là số và hợp lệ
+      if (isNaN(Number(row.grade)) || ![10, 11, 12].includes(Number(row.grade))) {
+        errors.push({ row: idx + 1, message: 'Khối lớp phải là 10, 11 hoặc 12' });
       }
       // Kiểm tra tương đồng nội dung với DB (giống BE)
       if (allQuestions.length > 0) {
@@ -197,6 +206,7 @@ const ImportQuestionModal = ({ visible, onClose, onImport }) => {
     { title: 'Đúng', dataIndex: 'correct_ans', key: 'correct_ans' },
     { title: 'Giải thích', dataIndex: 'explanation', key: 'explanation' },
     { title: 'Độ khó', dataIndex: 'level', key: 'level' },
+    { title: 'Khối lớp', dataIndex: 'grade', key: 'grade' },
   ];
 
   return (
