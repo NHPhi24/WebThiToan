@@ -10,8 +10,8 @@ const currentUser = getCurrentUser();
 const canEditExam = (record) => {
   if (!currentUser) return false;
   if (currentUser.role === 'ADMIN') return true;
-  // return String(record.teacher_id) === String(currentUser.id);
-  return record.teacher_id === currentUser.id;
+  return String(record.teacher_id) === String(currentUser.id);
+  // return record.teacher_id === currentUser.id;
 };
 import React, { useEffect, useState } from 'react';
 import { Table, message, Modal, Button } from 'antd';

@@ -14,7 +14,7 @@ const migrations = [
   { table: 'exam_results', column: 'duration_seconds', type: 'INTEGER DEFAULT 0' },
   // migration ca thi
   { table: 'exam_sessions', column: 'grade', type: 'VARCHAR(20) NULL' },
-  { table: 'exam_sessions', column: 'lock_duration_seconds', type: 'INTEGER DEFAULT 10' },
+  { table: 'exam_sessions', column: 'lock_duration_seconds', type: 'INTEGER DEFAULT 120' },
   // migration exam_results: đảm bảo có is_submitted
   { table: 'exam_results', column: 'is_submitted', type: 'BOOLEAN DEFAULT FALSE' },
   // migration cáu trúc đề thi

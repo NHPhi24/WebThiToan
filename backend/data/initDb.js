@@ -69,7 +69,7 @@ const initDb = async () => {
       exam_ids INTEGER[] DEFAULT '{}',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       grade VARCHAR(20) NULL,
-      lock_duration_seconds INTEGER DEFAULT 10
+      lock_duration_seconds INTEGER DEFAULT 120
     );
 
     CREATE TABLE IF NOT EXISTS session_participants (

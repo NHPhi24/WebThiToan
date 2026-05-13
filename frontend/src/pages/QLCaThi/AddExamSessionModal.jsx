@@ -114,6 +114,7 @@ const AddExamSessionModal = ({ open, onCancel, onOk, loading, user, editData }) 
               }
             : {
                 duration: 60,
+                lock_duration_seconds: 120,
                 status: 'READY',
                 teacher_id: user?.id,
                 start_time: dayjs().add(30, 'minute'),

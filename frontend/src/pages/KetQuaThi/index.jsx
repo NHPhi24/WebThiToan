@@ -205,7 +205,7 @@ const KetQuaThi = () => {
         </div>
       ) : null}
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        <Button onClick={() => navigate(-1)}>Quay lại</Button>
+        <Button onClick={() => navigate('/qlcathi')}>Quay lại</Button>
         <Button type="primary" onClick={exportToExcel}>
           Xuất file điểm
         </Button>

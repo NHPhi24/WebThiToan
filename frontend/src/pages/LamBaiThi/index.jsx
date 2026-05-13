@@ -74,6 +74,32 @@ const LamBaiThi = ({ setSidebarCollapsed }) => {
         <h1>Ca thi đang diễn ra bạn được phép làm</h1>
         <ReloadOutlined onClick={fetchSessions} style={{ fontSize: 20, cursor: 'pointer' }} />
       </div>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 8,
+          border: '1px solid #d7d7d7',
+          padding: 16,
+          backgroundColor: '#fff',
+          borderRadius: 4,
+        }}
+      >
+        <div>
+          <b style={{ color: 'red' }}>Lưu ý:</b>
+        </div>
+        <div>
+          - <strong>Bạn chỉ được thi 1 lần duy nhất cho mỗi ca thi.</strong>
+        </div>
+        <div>
+          - Nếu trong quá trình thi mà bạn<strong> chuyển tabs</strong> hoặc <strong>mở ứng dụng khác</strong>, ngoài màn hình thi sẽ được xem là vi
+          phạm.
+        </div>
+        <div>
+          - Nếu vi phạm đến <strong>lần thứ 3</strong> thì hệ thống sẽ tự động nộp bài của bạn.
+        </div>
+        <div>- Nếu có bất kỳ lỗi nào xảy ra trong quá trình thi, vui lòng liên hệ giáo viên để được hỗ trợ.</div>
+      </div>
       <List
         loading={loading}
         dataSource={sessions}
