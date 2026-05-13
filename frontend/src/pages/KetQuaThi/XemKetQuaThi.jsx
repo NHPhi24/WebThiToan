@@ -234,7 +234,7 @@ export default function XemKetQuaThi() {
                           : 'red',
                     }}
                   >
-                    {row.your_answer || 'Chưa chọn'}
+                    {typeof row.your_answer === 'string' ? (row.your_answer.trim() !== '' ? row.your_answer : 'Chưa chọn') : 'Chưa chọn'}
                   </b>
                 </span>
                 &nbsp;|&nbsp;

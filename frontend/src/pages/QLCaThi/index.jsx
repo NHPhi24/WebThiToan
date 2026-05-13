@@ -212,6 +212,12 @@ const QLCaThi = ({ user, isLoggedIn }) => {
       dataIndex: 'duration',
       key: 'duration',
     },
+    {
+      title: 'Thời gian khóa (giây)',
+      dataIndex: 'lock_duration_seconds',
+      key: 'lock_duration_seconds',
+      // render: (lock_duration_seconds) => lock_duration_seconds || '-',
+    },
     { title: 'Khối/Lớp', dataIndex: 'grade', key: 'grade', render: (grade) => grade || '-' },
     {
       title: 'Giáo viên tạo',

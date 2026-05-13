@@ -23,6 +23,17 @@ function getRandomExamId(examIds) {
 }
 
 const ThucHienBaiThi = ({ setSidebarCollapsed }) => {
+  // Ẩn header khi vào trang làm bài
+  useEffect(() => {
+    // Ẩn header nếu có
+    const header = document.querySelector('.app-header, header, #header');
+    if (header) {
+      header.style.display = 'none';
+    }
+    return () => {
+      if (header) header.style.display = '';
+    };
+  }, []);
   // Đảm bảo sidebar luôn đóng khi vào trang này, kể cả F5
   useEffect(() => {
     if (typeof setSidebarCollapsed === 'function') setSidebarCollapsed(true);
@@ -42,13 +53,23 @@ const ThucHienBaiThi = ({ setSidebarCollapsed }) => {
   const [locked, setLocked] = useState(false);
   const [lockCountdown, setLockCountdown] = useState(120); // 2 phút
   const [showUnlockBtn, setShowUnlockBtn] = useState(false);
+  const [viPhamCount, setViPhamCount] = useState(0); // Đếm số lần vi phạm
+  const [lockDuration, setLockDuration] = useState(120); // Thời gian khoá lấy từ ca thi
   // Khi vi phạm (chuyển tab/cửa sổ), khoá bài và bắt đầu đếm ngược
   const handleViPham = () => {
-    if (!locked) {
-      setLocked(true);
-      setLockCountdown(5);
-      setShowUnlockBtn(false);
-    }
+    setViPhamCount((prev) => {
+      // Nếu đã locked thì không tăng tiếp và không nộp bài tự động nữa
+      if (locked) return prev;
+      const newCount = prev + 1;
+      if (newCount >= 3) {
+        handleSubmit(true); // true: là vi phạm
+      } else {
+        setLocked(true);
+        setLockCountdown(lockDuration);
+        setShowUnlockBtn(false);
+      }
+      return newCount;
+    });
   };
 
   // Đếm ngược khi bị khoá
@@ -82,6 +103,7 @@ const ThucHienBaiThi = ({ setSidebarCollapsed }) => {
         // Lấy thông tin ca thi (để lấy tên ca, thời lượng...)
         const res = await api.getExamSessionById(sessionId);
         setSession(res.data);
+        setLockDuration(res.data.lock_duration_seconds ?? 120);
         // Đánh dấu đã vào thi
         if (user?.id && sessionId) {
           await participantApi.markJoined({ session_id: sessionId, user_id: user.id });
@@ -215,9 +237,10 @@ const ThucHienBaiThi = ({ setSidebarCollapsed }) => {
     }, 100);
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (isViPham = false) => {
     if (submitting) return;
     setSubmitting(true);
+    setLocked(false); // Đảm bảo đóng modal vi phạm khi nộp bài chủ động
     try {
       const duration_seconds = totalTime - timeLeft;
       // Luôn update, không tạo mới
@@ -230,7 +253,11 @@ const ThucHienBaiThi = ({ setSidebarCollapsed }) => {
         submitted_at: new Date().toISOString(),
         duration_seconds,
       });
-      message.success('Nộp bài thành công!');
+      if (isViPham) {
+        message.error('Bạn đã vi phạm 3 lần. Bài thi đã bị nộp tự động!');
+      } else {
+        message.success('Nộp bài thành công!');
+      }
       navigate('/qlketquathi');
     } catch {
       message.error('Nộp bài thất bại!');
@@ -257,19 +284,37 @@ const ThucHienBaiThi = ({ setSidebarCollapsed }) => {
   return (
     <>
       <VoHieu onViPham={handleViPham} />
-      <Modal open={locked} closable={false} footer={null} centered maskClosable={false}>
-        <div style={{ textAlign: 'center' }}>
-          <h2>Bài thi đã bị khoá do bạn chuyển tab hoặc cửa sổ!</h2>
-          <p>
-            Vui lòng chờ <b>{lockCountdown > 0 ? lockCountdown : 0}</b> giây để tiếp tục làm bài.
-          </p>
-          {showUnlockBtn && (
-            <Button type="primary" onClick={() => setLocked(false)}>
-              Xác nhận tiếp tục làm bài
-            </Button>
-          )}
+      {/* Lớp phủ nền đen khi bị khoá */}
+      {locked && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            background: 'rgba(0,0,0,0.95)',
+            zIndex: 2000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <div style={{ textAlign: 'center', color: '#fff', background: 'rgba(0,0,0,0.7)', padding: 32, borderRadius: 12, minWidth: 320 }}>
+            <h2>Bài thi đã bị khoá do bạn chuyển tab hoặc mở cửa sổ khác!</h2>
+            <span>Nếu bạn vi phạm 3 lần, bài thi sẽ bị nộp tự động.</span>
+            <p>
+              Vui lòng chờ <b>{lockCountdown > 0 ? lockCountdown : 0}</b> giây để tiếp tục làm bài.
+            </p>
+            <p style={{ color: '#ff7875', fontWeight: 600 }}>Số lần vi phạm: {viPhamCount} / 3</p>
+            {showUnlockBtn && (
+              <Button type="primary" onClick={() => setLocked(false)}>
+                Xác nhận tiếp tục làm bài
+              </Button>
+            )}
+          </div>
         </div>
-      </Modal>
+      )}
       <div
         style={{
           display: 'flex',

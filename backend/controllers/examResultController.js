@@ -45,7 +45,10 @@ const getExamResultDetail = async (req, res) => {
     // Gộp thông tin từng câu hỏi
     const details = questions.map((q, idx) => {
       const userAnsObj = Array.isArray(answersLog) ? answersLog.find((a) => a.question_id === q.id) : null;
-      const your_answer = userAnsObj ? userAnsObj.answer : null;
+      let your_answer = '';
+      if (userAnsObj && typeof userAnsObj.answer === 'string') {
+        your_answer = userAnsObj.answer;
+      }
       let is_correct = false;
       if (typeof your_answer === 'string' && your_answer.trim() !== '') {
         is_correct = your_answer.toUpperCase() === q.correct_ans.toUpperCase();

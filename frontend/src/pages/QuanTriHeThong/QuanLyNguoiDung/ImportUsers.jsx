@@ -33,7 +33,7 @@ const USER_COLUMNS = [
   { title: 'Họ và tên', dataIndex: 'full_name' },
   { title: 'Email', dataIndex: 'email' },
   { title: 'Vai trò', dataIndex: 'role' },
-  { title: 'Khối', dataIndex: 'grade' },
+  { title: 'Khối/lớp', dataIndex: 'grade' },
 ];
 
 const ImportUsers = ({ visible, onClose, onImported }) => {
@@ -47,7 +47,7 @@ const ImportUsers = ({ visible, onClose, onImported }) => {
     const ws = XLSX.utils.aoa_to_sheet([USER_HEADERS]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'UsersTemplate');
-    XLSX.writeFile(wb, 'users_template.xlsx');
+    XLSX.writeFile(wb, 'Cau_truc_mau_nhap_hoc_sinh.xlsx');
   };
 
   // Đọc file Excel

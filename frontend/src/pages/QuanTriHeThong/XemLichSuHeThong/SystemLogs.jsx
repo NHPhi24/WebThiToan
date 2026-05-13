@@ -46,12 +46,12 @@ const SystemLogs = () => {
       key: 'resource_type',
       width: 140,
     },
-    // {
-    //   title: 'Mã đối tượng',
-    //   dataIndex: 'resource_id',
-    //   key: 'resource_id',
-    //   width: 120,
-    // },
+    {
+      title: 'Mã đối tượng',
+      dataIndex: 'resource_id',
+      key: 'resource_id',
+      width: 120,
+    },
     {
       title: 'Tên đối tượng',
       dataIndex: 'resource_name',
@@ -68,13 +68,7 @@ const SystemLogs = () => {
     //   title: 'Chi tiết',
     //   dataIndex: 'details',
     //   key: 'details',
-    //   render: (details) => (
-    //     <pre
-    //       style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', margin: 0 }}
-    //     >
-    //       {JSON.stringify(details || {}, null, 2)}
-    //     </pre>
-    //   ),
+    //   render: (details) => <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', margin: 0 }}>{JSON.stringify(details || {}, null, 2)}</pre>,
     // },
   ];
 

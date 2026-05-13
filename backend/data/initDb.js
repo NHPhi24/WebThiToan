@@ -26,7 +26,8 @@ const initDb = async () => {
       correct_ans CHAR(1) NOT NULL,
       explanation TEXT,
       level INTEGER NOT NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      grade INTEGER CHECK (grade IN (10, 11, 12))
     );
 
     CREATE TABLE IF NOT EXISTS exam_templates (
@@ -36,7 +37,8 @@ const initDb = async () => {
       basic_percent INTEGER DEFAULT 70,
       advanced_percent INTEGER DEFAULT 30,
       teacher_id INTEGER REFERENCES users(id),
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      grade INTEGER CHECK (grade IN (10, 11, 12))
     );
 
     CREATE TABLE IF NOT EXISTS exams (
@@ -44,7 +46,8 @@ const initDb = async () => {
       exam_code VARCHAR(20) UNIQUE,
       template_id INTEGER REFERENCES exam_templates(id) ON DELETE SET NULL,
       teacher_id INTEGER REFERENCES users(id),
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      grade INTEGER CHECK (grade IN (10, 11, 12))
     );
 
     CREATE TABLE IF NOT EXISTS exam_questions (
@@ -65,7 +68,8 @@ const initDb = async () => {
       manual_status_time TIMESTAMP NULL,
       exam_ids INTEGER[] DEFAULT '{}',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      grade VARCHAR(20) NULL
+      grade VARCHAR(20) NULL,
+      lock_duration_seconds INTEGER DEFAULT 10
     );
 
     CREATE TABLE IF NOT EXISTS session_participants (
@@ -92,6 +96,16 @@ const initDb = async () => {
       CONSTRAINT fk_session FOREIGN KEY (session_id) REFERENCES exam_sessions(id) ON DELETE CASCADE,
       UNIQUE (session_id, student_id)
     );
+    -- Đảm bảo cột is_submitted tồn tại (nếu nâng cấp từ bản cũ)
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns WHERE table_name = 'exam_results' AND column_name = 'is_submitted'
+      ) THEN
+        ALTER TABLE exam_results ADD COLUMN is_submitted BOOLEAN DEFAULT FALSE;
+      END IF;
+    END
+    $$;
 
     CREATE TABLE IF NOT EXISTS system_audit_logs (
       id SERIAL PRIMARY KEY,

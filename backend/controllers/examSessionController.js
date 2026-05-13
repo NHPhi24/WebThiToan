@@ -17,10 +17,17 @@ const getOngoingExamSessionsWithRegisterStatus = async (req, res) => {
     regRes.rows.forEach((r) => {
       regMap[r.session_id] = r.register_status;
     });
-    // Gắn trạng thái đăng ký vào từng ca thi
+    // Lấy danh sách các ca thi mà user đã nộp bài (is_submitted=true)
+    const examResultRes = await db.query(
+      `SELECT session_id FROM exam_results WHERE student_id = $1 AND is_submitted = true AND session_id = ANY($2)`,
+      [user_id, sessionIds],
+    );
+    const submittedSessionIds = new Set(examResultRes.rows.map((r) => r.session_id));
+    // Gắn trạng thái đăng ký và has_submitted vào từng ca thi
     const resultList = ongoingSessions.map((s) => {
       const session = ExamSession.fromRow(s);
       session.register_status = regMap[s.id] ?? null; // null nếu chưa đăng ký
+      session.has_submitted = submittedSessionIds.has(s.id); // true nếu đã nộp bài
       return session;
     });
     res.json(resultList);
@@ -175,7 +182,7 @@ const getAllExamSessions = async (req, res) => {
 };
 
 const createExamSession = async (req, res) => {
-  const { session_name, start_time, duration, teacher_id, status, exam_ids, grade } = req.body;
+  const { session_name, start_time, duration, teacher_id, status, exam_ids, grade, lock_duration_seconds } = req.body;
 
   try {
     // Kiểm tra trùng tên ca thi
@@ -185,10 +192,10 @@ const createExamSession = async (req, res) => {
     }
 
     const result = await db.query(
-      `INSERT INTO exam_sessions (session_name, start_time, duration, teacher_id, status, exam_ids, grade)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO exam_sessions (session_name, start_time, duration, teacher_id, status, exam_ids, grade, lock_duration_seconds)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-      [session_name, start_time, duration, teacher_id, status || 'READY', exam_ids || [], grade],
+      [session_name, start_time, duration, teacher_id, status || 'READY', exam_ids || [], grade, lock_duration_seconds || 10],
     );
 
     await createAuditLog({
@@ -198,7 +205,7 @@ const createExamSession = async (req, res) => {
       resource_type: 'exam_session',
       resource_id: result.rows[0].id?.toString() || null,
       resource_name: result.rows[0].session_name,
-      details: { start_time, duration, status, teacher_id, exam_ids, grade },
+      details: { start_time, duration, status, teacher_id, exam_ids, grade, lock_duration_seconds },
     });
 
     res.status(201).json({ ...ExamSession.fromRow(result.rows[0]), created_at: new Date() });
@@ -228,11 +235,11 @@ const getExamSessionById = async (req, res) => {
 // Sửa ca thi
 const updateExamSession = async (req, res) => {
   const { id } = req.params;
-  const { session_name, start_time, duration, teacher_id, status, exam_ids, grade } = req.body;
+  const { session_name, start_time, duration, teacher_id, status, exam_ids, grade, lock_duration_seconds } = req.body;
   try {
     const result = await db.query(
-      `UPDATE exam_sessions SET session_name=$1, start_time=$2, duration=$3, teacher_id=$4, status=$5, exam_ids=$6, grade=$7 WHERE id=$8 RETURNING *`,
-      [session_name, start_time, duration, teacher_id, status, exam_ids || [], grade, id],
+      `UPDATE exam_sessions SET session_name=$1, start_time=$2, duration=$3, teacher_id=$4, status=$5, exam_ids=$6, grade=$7, lock_duration_seconds=$8 WHERE id=$9 RETURNING *`,
+      [session_name, start_time, duration, teacher_id, status, exam_ids || [], grade, lock_duration_seconds || 10, id],
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Exam session not found' });
@@ -244,7 +251,7 @@ const updateExamSession = async (req, res) => {
       resource_type: 'exam_session',
       resource_id: id,
       resource_name: session_name,
-      details: { start_time, duration, status, teacher_id, exam_ids, grade },
+      details: { start_time, duration, status, teacher_id, exam_ids, grade, lock_duration_seconds },
     });
     res.json(ExamSession.fromRow(result.rows[0]));
   } catch (error) {

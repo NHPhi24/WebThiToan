@@ -237,16 +237,22 @@ const AdminUsers = () => {
           <Form.Item label="Vai trò" name="role" rules={[{ required: true, message: 'Vui lòng chọn vai trò' }]}>
             {getCurrentUser()?.role === 'TEACHER' ? <Select options={ROLES.filter((r) => r.value === 'STUDENT')} /> : <Select options={ROLES} />}
           </Form.Item>
-          <Form.Item label="Lớp" name="grade" rules={[{ required: false }]}>
-            <Select
-              allowClear
-              placeholder="Chọn lớp (nếu là học sinh)"
-              options={[
-                { label: '10', value: 10 },
-                { label: '11', value: 11 },
-                { label: '12', value: 12 },
-              ]}
-            />
+          <Form.Item noStyle shouldUpdate={(prev, curr) => prev.role !== curr.role}>
+            {({ getFieldValue }) =>
+              getFieldValue('role') === 'STUDENT' && (
+                <Form.Item label="Lớp" name="grade" rules={[{ required: false }]}>
+                  <Select
+                    allowClear
+                    placeholder="Chọn lớp (nếu là học sinh)"
+                    options={[
+                      { label: '10', value: 10 },
+                      { label: '11', value: 11 },
+                      { label: '12', value: 12 },
+                    ]}
+                  />
+                </Form.Item>
+              )
+            }
           </Form.Item>
           {!editingUser && (
             <>
@@ -303,6 +309,9 @@ const AdminUsers = () => {
             </p>
             <p>
               <b>Email:</b> {viewUser.email}
+            </p>
+            <p>
+              <b>Lớp:</b> {viewUser.grade || '-'}
             </p>
             <p>
               <b>Vai trò:</b> {getRoleLabel(viewUser.role)}

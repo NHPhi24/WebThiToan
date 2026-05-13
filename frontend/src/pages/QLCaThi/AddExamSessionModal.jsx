@@ -55,6 +55,7 @@ const AddExamSessionModal = ({ open, onCancel, onOk, loading, user, editData }) 
           ...editData,
           start_time: dayjs(editData.start_time),
           exam_ids: editData.exam_ids || [],
+          lock_duration_seconds: editData.lock_duration_seconds ?? 120,
         });
       } else if (!isEdit && user) {
         grade = form.getFieldValue('grade');
@@ -62,6 +63,7 @@ const AddExamSessionModal = ({ open, onCancel, onOk, loading, user, editData }) 
         form.setFieldsValue({
           teacher_id: user.id,
           start_time: defaultStart,
+          lock_duration_seconds: 120,
         });
       }
       filterExamsByGrade(grade);
@@ -73,7 +75,6 @@ const AddExamSessionModal = ({ open, onCancel, onOk, loading, user, editData }) 
   const handleGradeChange = (grade) => {
     filterExamsByGrade(grade);
   };
-          
 
   const handleOk = async () => {
     try {
@@ -81,6 +82,7 @@ const AddExamSessionModal = ({ open, onCancel, onOk, loading, user, editData }) 
       onOk({
         ...values,
         start_time: values.start_time.toISOString(),
+        lock_duration_seconds: values.lock_duration_seconds ?? 120,
       });
       form.resetFields();
     } catch (err) {
@@ -98,6 +100,7 @@ const AddExamSessionModal = ({ open, onCancel, onOk, loading, user, editData }) 
       cancelText="Hủy"
       confirmLoading={loading}
       destroyOnClose
+      style={{ maxHeight: '80vh', overflowY: 'auto' }}
     >
       <Form
         form={form}
@@ -143,7 +146,7 @@ const AddExamSessionModal = ({ open, onCancel, onOk, loading, user, editData }) 
           <Input />
         </Form.Item>
         <Form.Item label="Lớp" name="grade" rules={[{ required: true, message: 'Chọn lớp' }]}>
-         <Select
+          <Select
             options={[
               { label: '10', value: '10' },
               { label: '11', value: '11' },
@@ -152,6 +155,9 @@ const AddExamSessionModal = ({ open, onCancel, onOk, loading, user, editData }) 
             placeholder="Chọn lớp"
             onChange={handleGradeChange}
           />
+        </Form.Item>
+        <Form.Item label="Thời gian khóa (giây)" name="lock_duration_seconds" rules={[{ required: true, message: 'Nhập thời gian khóa' }]}>
+          <InputNumber min={1} max={300} style={{ width: '100%' }} />
         </Form.Item>
         <Form.Item label="Chọn đề thi" name="exam_ids" rules={[{ required: true, message: 'Chọn ít nhất 1 đề thi' }]}>
           <Select

@@ -108,13 +108,13 @@ const AddStudentToSessionModal = ({ open, onClose, sessionId, onSuccess, editUse
             mode="multiple"
             style={{ width: '100%' }}
             placeholder="Chọn học sinh theo tên hoặc email"
-            optionFilterProp="children"
+            optionFilterProp="label"
             value={selectedUserId}
             onChange={setSelectedUserId}
-            filterOption={(input, option) => (option?.children ?? '').toLowerCase().includes(input.toLowerCase())}
+            filterOption={(input, option) => (option?.label ?? '').toLowerCase().includes(input.toLowerCase())}
           >
             {users.map((u) => (
-              <Option key={u.id} value={u.id}>
+              <Option key={u.id} value={u.id} label={`${u.id} - ${u.full_name} (${u.email})`}>
                 {u.id} - {u.full_name} ({u.email})
               </Option>
             ))}
@@ -135,7 +135,7 @@ const AddStudentToSessionModal = ({ open, onClose, sessionId, onSuccess, editUse
               <Input />
             </Form.Item>
             <Form.Item name="grade" label="Lớp" rules={[{ required: true, message: 'Nhập lớp!' }]}>
-              <Input disabled={!editUser} value={sessionGrade} />
+              <Input disabled={!!editUser} />
             </Form.Item>
             {!editUser && (
               <>

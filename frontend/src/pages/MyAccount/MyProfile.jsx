@@ -22,6 +22,7 @@ const MyProfile = () => {
             email: res.data.email,
             phone: res.data.phone,
             username: res.data.username,
+            role: res.data.role,
             profile_info: res.data.profile_info
               ? typeof res.data.profile_info === 'string'
                 ? res.data.profile_info
@@ -91,6 +92,9 @@ const MyProfile = () => {
         </Form.Item>
         <Form.Item label="Email" name="email" rules={[{ type: 'email', message: 'Email không hợp lệ' }]}>
           <Input />
+        </Form.Item>
+        <Form.Item label="role" name="role">
+          <Input disabled />
         </Form.Item>
         {/* <Form.Item label="Số điện thoại" name="phone">
           <Input />

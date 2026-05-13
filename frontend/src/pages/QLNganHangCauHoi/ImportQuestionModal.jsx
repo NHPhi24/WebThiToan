@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Button, message, Table, Alert } from 'antd';
+import { Modal, Button, message, Table, Alert, Input } from 'antd';
 import { DownloadOutlined } from '@ant-design/icons';
 import * as XLSX from 'xlsx';
 import stringSimilarity from 'string-similarity';
@@ -39,6 +39,9 @@ const ImportQuestionModal = ({ visible, onClose, onImport }) => {
   const [validateErrors, setValidateErrors] = useState([]);
   const [importing, setImporting] = useState(false);
   const [allQuestions, setAllQuestions] = useState([]);
+  const fileInputRef = React.useRef();
+  const [fileInputKey, setFileInputKey] = useState(Date.now());
+  const [selectedFileName, setSelectedFileName] = useState('');
 
   // Fetch all questions from DB when modal is opened
   useEffect(() => {
@@ -143,6 +146,7 @@ const ImportQuestionModal = ({ visible, onClose, onImport }) => {
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
+    setSelectedFileName(file ? file.name : '');
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (evt) => {
@@ -174,6 +178,7 @@ const ImportQuestionModal = ({ visible, onClose, onImport }) => {
       }
     };
     reader.readAsArrayBuffer(file);
+    setFileInputKey(Date.now());
   };
 
   const handleImport = () => {
@@ -215,6 +220,7 @@ const ImportQuestionModal = ({ visible, onClose, onImport }) => {
       open={visible}
       onCancel={onClose}
       width={1000}
+      style={{ maxHeight: '600px', overflowY: 'auto' }}
       footer={[
         <Button key="export" icon={<DownloadOutlined />} onClick={handleExportTemplate}>
           Tải file mẫu Excel
@@ -224,6 +230,9 @@ const ImportQuestionModal = ({ visible, onClose, onImport }) => {
           onClick={() => {
             setPreviewData([]);
             setValidateErrors([]);
+            setFileInputKey(Date.now());
+            setSelectedFileName('');
+            if (fileInputRef.current) fileInputRef.current.value = '';
           }}
         >
           Làm Mới
@@ -242,8 +251,19 @@ const ImportQuestionModal = ({ visible, onClose, onImport }) => {
         </Button>,
       ]}
     >
+      <div></div>
       <p>Bạn có thể tải file mẫu Excel để nhập câu hỏi theo đúng cấu trúc.</p>
-      <input type="file" accept=".xlsx, .xls" style={{ marginTop: 16, marginBottom: 16 }} onChange={handleFileChange} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <input
+          key={fileInputKey}
+          type="file"
+          accept=".xlsx, .xls"
+          style={{ marginTop: 16, marginBottom: 16, flex: 1 }}
+          onChange={handleFileChange}
+          ref={fileInputRef}
+        />
+        <span style={{ minWidth: 120, marginTop: 16, marginBottom: 16 }}>{selectedFileName || 'Chưa chọn file'}</span>
+      </div>
       {validateErrors.length > 0 && (
         <Alert
           type="error"

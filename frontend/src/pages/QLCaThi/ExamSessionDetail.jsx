@@ -41,6 +41,7 @@ const ExamSessionDetail = ({ data, onViewResult, canEdit, onStatusChange, regist
 
   return (
     <div>
+      <h2>Chi tiết ca thi</h2>
       <p>
         <b>Tên ca thi:</b> {data.session_name}
       </p>
@@ -49,6 +50,9 @@ const ExamSessionDetail = ({ data, onViewResult, canEdit, onStatusChange, regist
       </p>
       <p>
         <b>Thời lượng:</b> {data.duration} phút
+      </p>
+      <p>
+        <b>Thời gian khóa :</b> {data.lock_duration_seconds || '-'} giây
       </p>
       <p>
         <b>Trạng thái:</b>
