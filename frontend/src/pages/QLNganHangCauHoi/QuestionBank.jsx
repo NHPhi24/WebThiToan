@@ -142,11 +142,11 @@ const QuestionBank = () => {
       render: (text) => <MathText>{text}</MathText>,
     },
     {
-      title: 'Đúng',
+      title: 'Đáp án đúng',
       dataIndex: 'correct_ans',
       key: 'correct_ans',
-      width: 60,
-      render: (text) => <b style={{ color: '#1890ff' }}>{text}</b>,
+      width: 150,
+      render: (text) => <MathText>{text}</MathText>,
     },
     {
       title: 'Giải thích',
@@ -225,16 +225,38 @@ const QuestionBank = () => {
       <ImportQuestionModal
         visible={importModal.visible}
         onClose={importModal.close}
-        onImport={async (data) => {
-          try {
-            for (const q of data) {
-              await apiService.createQuestion(q);
+        onImport={async (data, options = {}) => {
+          // Nếu là dryRun, chỉ gửi lên BE để lấy mathStruct, không import thật
+          if (options.dryRun) {
+            try {
+              const formData = new FormData();
+              const blob = new Blob(
+                [new Uint8Array(await (await fetch('data:application/json,' + encodeURIComponent(JSON.stringify(data)))).arrayBuffer())],
+                { type: 'application/json' },
+              );
+              formData.append('file', blob, 'import.json');
+              const res = await apiService.importQuestions(formData, true); // true = dryRun
+              return res.data;
+            } catch {
+              return { mathStruct: [] };
             }
-            message.success('Import thành công!');
-            fetchQuestions();
-          } catch {
-            message.error('Import thất bại!');
           }
+          // Import thật
+          const results = [];
+          for (const q of data) {
+            try {
+              await apiService.createQuestion(q);
+              results.push({ ...q, status: 'created' });
+            } catch (err) {
+              let errorMsg = err?.response?.data?.error || err?.message || 'Lỗi';
+              results.push({ ...q, status: 'error', error: errorMsg });
+            }
+          }
+          message.success(
+            `Import thành công: ${results.filter((r) => r.status === 'created').length}, thất bại: ${results.filter((r) => r.status !== 'created').length}`,
+          );
+          fetchQuestions();
+          return results;
         }}
       />
       <Table columns={columns} dataSource={filteredQuestions} rowKey="id" loading={loading} bordered scroll={{ x: 'max-content' }} />

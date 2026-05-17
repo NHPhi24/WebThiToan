@@ -224,22 +224,20 @@ export default function XemKetQuaThi() {
               <div style={{ marginLeft: 32, marginBottom: 8 }}>
                 <span>
                   Đáp án của bạn:{' '}
-                  <b
-                    style={{
-                      color:
-                        typeof row.your_answer === 'string' &&
-                        row.your_answer.trim() !== '' &&
-                        row.your_answer.toUpperCase() === row.correct_answer.toUpperCase()
-                          ? 'green'
-                          : 'red',
-                    }}
-                  >
-                    {typeof row.your_answer === 'string' ? (row.your_answer.trim() !== '' ? row.your_answer : 'Chưa chọn') : 'Chưa chọn'}
-                  </b>
+                  {typeof row.your_answer === 'string' && row.your_answer.trim() !== '' ? (
+                    <b style={{ color: row.your_answer.trim() === row.correct_answer.trim() ? 'green' : 'red' }}>
+                      <MathText>{row.your_answer}</MathText>
+                    </b>
+                  ) : (
+                    <b style={{ color: 'gray' }}>Chưa chọn</b>
+                  )}
                 </span>
                 &nbsp;|&nbsp;
                 <span>
-                  Đáp án đúng: <b style={{ color: '#1976d2' }}>{row.correct_answer}</b>
+                  Đáp án đúng:{' '}
+                  <b style={{ color: '#1976d2' }}>
+                    <MathText>{row.correct_answer}</MathText>
+                  </b>
                 </span>
                 &nbsp;|&nbsp;
                 <span>

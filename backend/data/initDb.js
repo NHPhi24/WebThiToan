@@ -23,7 +23,7 @@ const initDb = async () => {
       ans_b TEXT NOT NULL,
       ans_c TEXT NOT NULL,
       ans_d TEXT NOT NULL,
-      correct_ans CHAR(1) NOT NULL,
+      correct_ans TEXT NOT NULL,
       explanation TEXT,
       level INTEGER NOT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -69,8 +69,10 @@ const initDb = async () => {
       exam_ids INTEGER[] DEFAULT '{}',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       grade VARCHAR(20) NULL,
-      lock_duration_seconds INTEGER DEFAULT 120
+      lock_duration_seconds INTEGER DEFAULT 10,
+      max_participants INTEGER DEFAULT NULL
     );
+    
 
     CREATE TABLE IF NOT EXISTS session_participants (
       session_id INTEGER REFERENCES exam_sessions(id) ON DELETE CASCADE,
@@ -88,6 +90,7 @@ const initDb = async () => {
       session_id INTEGER NOT NULL,
       score DECIMAL(4, 2) DEFAULT 0,
       answers_log JSONB DEFAULT '{}',
+      violation_logs JSONB DEFAULT '[]', -- Log vi phạm: [{time, type, note}]
       is_submitted BOOLEAN DEFAULT FALSE,
       submitted_at TIMESTAMP,
       duration_seconds INTEGER DEFAULT 0, -- Thời gian làm bài (giây)
@@ -96,16 +99,17 @@ const initDb = async () => {
       CONSTRAINT fk_session FOREIGN KEY (session_id) REFERENCES exam_sessions(id) ON DELETE CASCADE,
       UNIQUE (session_id, student_id)
     );
-    -- Đảm bảo cột is_submitted tồn tại (nếu nâng cấp từ bản cũ)
-    DO $$
-    BEGIN
-      IF NOT EXISTS (
-        SELECT 1 FROM information_schema.columns WHERE table_name = 'exam_results' AND column_name = 'is_submitted'
-      ) THEN
-        ALTER TABLE exam_results ADD COLUMN is_submitted BOOLEAN DEFAULT FALSE;
-      END IF;
-    END
-    $$;
+        -- Đảm bảo cột violation_logs tồn tại (nếu nâng cấp từ bản cũ)
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns WHERE table_name = 'exam_results' AND column_name = 'violation_logs'
+          ) THEN
+            ALTER TABLE exam_results ADD COLUMN violation_logs JSONB DEFAULT '[]';
+          END IF;
+        END
+        $$;
+    
 
     CREATE TABLE IF NOT EXISTS system_audit_logs (
       id SERIAL PRIMARY KEY,
@@ -118,7 +122,16 @@ const initDb = async () => {
       details JSONB DEFAULT '{}',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
-
+    -- Đảm bảo cột is_submitted tồn tại (nếu nâng cấp từ bản cũ)
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns WHERE table_name = 'exam_results' AND column_name = 'is_submitted'
+      ) THEN
+        ALTER TABLE exam_results ADD COLUMN is_submitted BOOLEAN DEFAULT FALSE;
+      END IF;
+    END
+    $$;
     DO $$
     BEGIN
       IF EXISTS (
@@ -126,6 +139,16 @@ const initDb = async () => {
         WHERE table_name = 'system_audit_logs' AND column_name = 'actor_username'
       ) THEN
         ALTER TABLE system_audit_logs RENAME COLUMN actor_username TO created_by;
+      END IF;
+    END
+    $$;
+    -- Đảm bảo cột max_participants tồn tại (nếu nâng cấp từ bản cũ)
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns WHERE table_name = 'exam_sessions' AND column_name = 'max_participants'
+      ) THEN
+        ALTER TABLE exam_sessions ADD COLUMN max_participants INTEGER DEFAULT NULL;
       END IF;
     END
     $$;

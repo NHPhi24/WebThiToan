@@ -44,6 +44,7 @@ const QLCaThi = ({ user, isLoggedIn }) => {
   const [form] = Form.useForm();
   const [examOptions, setExamOptions] = useState([]);
   const [search, setSearch] = useState('');
+  const [registeredCounts, setRegisteredCounts] = useState({});
 
   useEffect(() => {
     api.getAllExams().then((res) => {
@@ -59,7 +60,12 @@ const QLCaThi = ({ user, isLoggedIn }) => {
   const handleAddModalOk = async (values) => {
     setAddModalLoading(true);
     try {
-      await apiService.createExamSession(values);
+      // Đảm bảo exam_ids luôn là mảng số nguyên
+      const payload = {
+        ...values,
+        exam_ids: Array.isArray(values.exam_ids) ? values.exam_ids.map(Number) : values.exam_ids ? [Number(values.exam_ids)] : [],
+      };
+      await apiService.createExamSession(payload);
       message.success('Tạo ca thi thành công');
       setAddModalOpen(false);
       fetchData();
@@ -134,7 +140,8 @@ const QLCaThi = ({ user, isLoggedIn }) => {
 
   const handleStatusChange = async (id, status) => {
     try {
-      await apiService.updateExamSessionStatus(id, status);
+      const currentUser = getCurrentUser();
+      await apiService.updateExamSessionStatus(id, status, currentUser?.id);
       message.success('Đã đổi trạng thái');
       fetchData();
     } catch {
@@ -146,19 +153,18 @@ const QLCaThi = ({ user, isLoggedIn }) => {
     try {
       const values = await form.validateFields();
       setModalLoading(true);
+      // Đảm bảo exam_ids luôn là mảng số nguyên
+      const payload = {
+        ...values,
+        exam_ids: Array.isArray(values.exam_ids) ? values.exam_ids.map(Number) : values.exam_ids ? [Number(values.exam_ids)] : [],
+        start_time: values.start_time.toISOString(),
+        grade: values.grade,
+      };
       if (modalMode === 'edit') {
-        await apiService.updateExamSession(modalData.id, {
-          ...values,
-          start_time: values.start_time.toISOString(),
-          grade: values.grade,
-        });
+        await apiService.updateExamSession(modalData.id, payload);
         message.success('Cập nhật thành công');
       } else if (modalMode === 'add') {
-        await apiService.createExamSession({
-          ...values,
-          start_time: values.start_time.toISOString(),
-          grade: values.grade,
-        });
+        await apiService.createExamSession(payload);
         message.success('Tạo ca thi thành công');
       }
       setModalOpen(false);
@@ -192,8 +198,29 @@ const QLCaThi = ({ user, isLoggedIn }) => {
     };
     fetchRegistered();
   }, []);
+
   // Lọc dữ liệu theo tên ca thi
   const filteredData = data.filter((row) => row.session_name?.toLowerCase().includes(search.toLowerCase()));
+
+  // Fetch số lượng học sinh đã đăng ký cho từng ca thi
+  useEffect(() => {
+    const fetchCounts = async () => {
+      const counts = {};
+      await Promise.all(
+        filteredData.map(async (row) => {
+          try {
+            const res = await api.getUsersBySession(row.id);
+            counts[row.id] = (res.data || []).length;
+          } catch {
+            counts[row.id] = 0;
+          }
+        }),
+      );
+      setRegisteredCounts(counts);
+    };
+    fetchCounts();
+    // eslint-disable-next-line
+  }, [filteredData.length, search, data.length]);
 
   const columns = [
     {
@@ -219,6 +246,17 @@ const QLCaThi = ({ user, isLoggedIn }) => {
       // render: (lock_duration_seconds) => lock_duration_seconds || '-',
     },
     { title: 'Khối/Lớp', dataIndex: 'grade', key: 'grade', render: (grade) => grade || '-' },
+    {
+      title: 'Số lượng học sinh',
+      dataIndex: 'max_participants',
+      key: 'max_participants',
+      render: (max, record) => (
+        <span>
+          {registeredCounts[record.id] !== undefined ? registeredCounts[record.id] : '...'}
+          {max ? ` / ${max}` : ''}
+        </span>
+      ),
+    },
     {
       title: 'Giáo viên tạo',
       dataIndex: 'teacher_id',
@@ -310,7 +348,7 @@ const QLCaThi = ({ user, isLoggedIn }) => {
           <Table
             columns={[
               { title: 'Tên ca thi', dataIndex: 'session_name', key: 'session_name' },
-              { title: 'Khối/Lớp', dataIndex: 'grade', key: 'grade', render: (text) => text || '-' },
+              { title: 'Khối/lớp', dataIndex: 'grade', key: 'grade', render: (text) => text || '-' },
               {
                 title: 'Thời gian bắt đầu',
                 dataIndex: 'start_time',
@@ -334,6 +372,7 @@ const QLCaThi = ({ user, isLoggedIn }) => {
                   key: p.session_id,
                   session_name: session.session_name || '(Không tìm thấy)',
                   start_time: session.start_time,
+                  grade: session.grade, // Thêm trường grade để hiển thị khối/lớp
                   register_status: p.register_status,
                 };
               })}

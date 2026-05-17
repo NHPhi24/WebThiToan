@@ -11,6 +11,7 @@ class ExamSession {
     exam_ids,
     grade,
     lock_duration_seconds,
+    max_participants,
   }) {
     this.id = id;
     this.session_name = session_name;
@@ -23,6 +24,7 @@ class ExamSession {
     this.created_at = created_at;
     this.grade = grade;
     this.lock_duration_seconds = lock_duration_seconds;
+    this.max_participants = max_participants;
   }
 
   static fromRow(row) {

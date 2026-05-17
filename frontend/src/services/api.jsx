@@ -11,6 +11,7 @@ const api = {
   createUser: (data) => axiosClient.post('/users', data),
   updateUser: (id, data) => axiosClient.put(`/users/${id}`, data),
   deleteUser: (id) => axiosClient.delete(`/users/${id}`),
+  importUsers: (users) => axiosClient.post('/users/import', { users }),
   getAllStudents: (grade) => axiosClient.get('/users/students' + (grade ? `?grade=${encodeURIComponent(grade)}` : '')),
   // Kiểm tra trùng user khi import
   checkDuplicateUsers: (users) => axiosClient.post('/users/check-duplicates', { users }),
@@ -18,8 +19,8 @@ const api = {
   // ngân hàng câu hỏi
   getAllQuestions: () => axiosClient.get('/questions'),
   getQuestionById: (id) => axiosClient.get(`/questions/${id}`),
-  createQuestion: (data) => axiosClient.post('/questions', data),
-  updateQuestion: (id, data) => axiosClient.put(`/questions/${id}`, data),
+  createQuestion: (data) => axiosClient.post('/questions', data).then((res) => res.data),
+  updateQuestion: (id, data) => axiosClient.put(`/questions/${id}`, data).then((res) => res.data),
   deleteQuestion: (id) => axiosClient.delete(`/questions/${id}`),
 
   // Cấu trúc đề thi
@@ -31,6 +32,7 @@ const api = {
   getAllExams: () => axiosClient.get('/exams'),
   getQuestionsByExamId: (id) => axiosClient.get(`/exams/${id}/questions`),
   autoGenerateExam: (data) => axiosClient.post('/exams/auto-generate', data),
+  updateExam: (id, data) => axiosClient.put(`/exams/${id}`, data),
   deleteExam: (id) => axiosClient.delete(`/exams/${id}`),
 
   // Ca thi
@@ -39,20 +41,22 @@ const api = {
   createExamSession: (data) => axiosClient.post('/exam-sessions', data),
   updateExamSession: (id, data) => axiosClient.put(`/exam-sessions/${id}`, data),
   deleteExamSession: (id) => axiosClient.delete(`/exam-sessions/${id}`),
-  updateExamSessionStatus: (id, status) => axiosClient.patch(`/exam-sessions/${id}/status`, { status }),
-
+  updateExamSessionStatus: (id, status, actor_id) => axiosClient.patch(`/exam-sessions/${id}/status`, { status, actor_id }),
   getOngoingExamSessions: () => axiosClient.get('/exam-sessions/ongoing'),
   getReadyExamSessions: () => axiosClient.get('/exam-sessions/ready'),
-  // Bắt đầu làm bài thi (random mã đề và lấy câu hỏi từ BE)
+  getOngoingApprovedExamSessions: (user_id) => axiosClient.get(`/exam-sessions/ongoing/approved?user_id=${user_id}`),
+  // Import học sinh vào ca thi
+  importSessionParticipants: ({ session_id, users }) => axiosClient.post('/session-participants/import', { session_id, users }),
   startExamSession: (sessionId) => axiosClient.post(`/exam-sessions/${sessionId}/start`),
-  // Danh sách đăng ký ca thi
+  // đăng kỳ tham thi
   getAllSessionParticipants: () => axiosClient.get('/session-participants'),
-  // Lấy danh sách user đã đăng ký của 1 ca thi
   getUsersBySession: (session_id) => axiosClient.get(`/session-participants/${session_id}/users`),
   registerSessionParticipant: ({ session_id, user_id }) => axiosClient.post('/session-participants/register', { session_id, user_id }),
-  // Ca thi đang diễn ra kèm trạng thái đăng ký của user
   getOngoingExamSessionsWithRegisterStatus: (user_id) => axiosClient.get(`/exam-sessions/ongoing/with-register-status?user_id=${user_id}`),
-  // Nộp bài (manual submit)
+  // vi phạm khi thi
+  addViolationLog: ({ student_id, session_id, type, note }) =>
+    axiosClient.post('/exam-results/violation-log', { student_id, session_id, type, note }),
+  // nộp bài thi
   createExamResult: (data) => {
     // Ép kiểu số cho các id để tránh lỗi duplicate key
     return axiosClient.post('/exam-results', {
@@ -70,14 +74,11 @@ const api = {
       session_id: Number(session_id),
       duration_seconds,
     }),
-  // Ca thi đang diễn ra mà học sinh đã được phê duyệt
-  getOngoingApprovedExamSessions: (user_id) => axiosClient.get(`/exam-sessions/ongoing/approved?user_id=${user_id}`),
+
   // Kết quả thi
   getAllExamResults: () => axiosClient.get('/exam-results'),
   getExamResultById: (id) => axiosClient.get(`/exam-results/${id}`),
-  // Kết quả thi của học sinh hiện tại
   getExamResultsByStudent: (student_id) => axiosClient.get(`/exam-results/student?student_id=${student_id}`),
-
   // Ghi nhật ký lịch sử
   getAllSystemLogs: () => axiosClient.get('/system-logs'),
 };

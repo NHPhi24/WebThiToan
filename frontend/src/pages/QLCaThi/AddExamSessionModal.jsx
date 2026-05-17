@@ -160,9 +160,16 @@ const AddExamSessionModal = ({ open, onCancel, onOk, loading, user, editData }) 
         <Form.Item label="Thời gian khóa (giây)" name="lock_duration_seconds" rules={[{ required: true, message: 'Nhập thời gian khóa' }]}>
           <InputNumber min={1} max={300} style={{ width: '100%' }} />
         </Form.Item>
+        <Form.Item
+          label="Số lượng học sinh tối đa"
+          name="max_participants"
+          rules={[{ required: false, type: 'number', min: 1, message: 'Nhập số lượng tối đa hoặc để trống' }]}
+        >
+          <InputNumber min={1} max={40} style={{ width: '100%' }} placeholder="Không giới hạn nếu để trống" />
+        </Form.Item>
         <Form.Item label="Chọn đề thi" name="exam_ids" rules={[{ required: true, message: 'Chọn ít nhất 1 đề thi' }]}>
           <Select
-            mode="multiple"
+            // mode="multiple"
             allowClear
             placeholder="Chọn đề thi cho ca thi"
             options={examOptions}

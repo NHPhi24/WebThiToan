@@ -1,3 +1,37 @@
+// Ghi log vi phạm cho bài thi
+const addViolationLog = async (req, res) => {
+  const { student_id, session_id, type, note } = req.body;
+  if (!student_id || !session_id || !type) {
+    return res.status(400).json({ error: 'Thiếu thông tin log vi phạm' });
+  }
+  try {
+    // Lấy bản ghi exam_result
+    const resultRes = await db.query('SELECT * FROM exam_results WHERE student_id=$1 AND session_id=$2', [student_id, session_id]);
+    if (resultRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Không tìm thấy bài thi để ghi log vi phạm' });
+    }
+    const examResult = resultRes.rows[0];
+    let violationLogs = examResult.violation_logs || [];
+    if (typeof violationLogs === 'string') {
+      try {
+        violationLogs = JSON.parse(violationLogs);
+      } catch {
+        violationLogs = [];
+      }
+    }
+    const log = {
+      time: new Date().toISOString(),
+      type,
+      note: note || '',
+    };
+    violationLogs.push(log);
+    await db.query('UPDATE exam_results SET violation_logs=$1 WHERE id=$2', [JSON.stringify(violationLogs), examResult.id]);
+    res.json({ success: true, violation_logs: violationLogs });
+  } catch (error) {
+    console.error('addViolationLog error:', error);
+    res.status(500).json({ error: 'Failed to add violation log' });
+  }
+};
 // API: Lấy tất cả kết quả thi của một học sinh (theo student_id)
 const getExamResultsByStudent = async (req, res) => {
   try {
@@ -51,7 +85,8 @@ const getExamResultDetail = async (req, res) => {
       }
       let is_correct = false;
       if (typeof your_answer === 'string' && your_answer.trim() !== '') {
-        is_correct = your_answer.toUpperCase() === q.correct_ans.toUpperCase();
+        // So sánh đáp án đúng dạng chuỗi, bỏ qua khoảng trắng đầu cuối
+        is_correct = your_answer.trim() === String(q.correct_ans).trim();
       }
       return {
         question_id: q.id,
@@ -94,7 +129,7 @@ const getAllExamResults = async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch exam results' });
   }
 };
-
+// Tạo mới hoặc cập nhật kết quả thi (nếu đã tồn tại theo constraint session_id + student_id)
 const createExamResult = async (req, res) => {
   let { student_id, exam_id, session_id, answers_log, is_submitted, submitted_at, duration_seconds } = req.body;
   // Ép kiểu về số để tránh lỗi so khớp
@@ -102,22 +137,46 @@ const createExamResult = async (req, res) => {
   exam_id = Number(exam_id);
   session_id = Number(session_id);
   try {
-    // 1. Lấy danh sách câu hỏi của đề thi (theo đúng thứ tự)
+    // 1. Lấy danh sách câu hỏi của đề thi (theo đúng thứ tự, lấy cả nội dung đáp án)
     const questionsRes = await db.query(
-      `SELECT q.id, q.correct_ans FROM exam_questions eq JOIN questions q ON eq.question_id = q.id WHERE eq.exam_id = $1 ORDER BY eq.order_index ASC`,
+      `SELECT q.id, q.ans_a, q.ans_b, q.ans_c, q.ans_d, q.correct_ans FROM exam_questions eq JOIN questions q ON eq.question_id = q.id WHERE eq.exam_id = $1 ORDER BY eq.order_index ASC`,
       [exam_id],
     );
     const questions = questionsRes.rows;
-    // 2. Chuyển answers_log thành mảng đúng thứ tự câu hỏi
-    const orderedAnswers = questions.map((q) => ({ question_id: q.id, answer: answers_log ? answers_log[q.id] || null : null }));
+    // 2. Chuyển answers_log thành mảng đúng thứ tự câu hỏi, lưu nội dung đáp án
+    const orderedAnswers = questions.map((q) => {
+      let answer = '';
+      if (answers_log && answers_log[q.id] !== undefined) {
+        // Nếu FE gửi lên là A/B/C/D thì chuyển sang nội dung đáp án
+        const val = answers_log[q.id];
+        if ([q.ans_a, q.ans_b, q.ans_c, q.ans_d].includes(val)) {
+          answer = val;
+        } else if (val === 'A') answer = q.ans_a;
+        else if (val === 'B') answer = q.ans_b;
+        else if (val === 'C') answer = q.ans_c;
+        else if (val === 'D') answer = q.ans_d;
+        else answer = val;
+      }
+      return { question_id: q.id, answer };
+    });
 
-    // 3. Đối chiếu đáp án học sinh
+    // 3. Đối chiếu đáp án học sinh (so sánh nội dung text, bỏ qua khoảng trắng)
     let correct = 0;
     let total = questions.length;
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
       const userAns = orderedAnswers[i].answer;
-      if (typeof userAns === 'string' && userAns.toUpperCase() === q.correct_ans.toUpperCase()) correct++;
+      let correctText = '';
+      // Nếu correct_ans là A/B/C/D thì lấy nội dung đáp án, còn lại so sánh trực tiếp nội dung latex
+      if (['A', 'B', 'C', 'D'].includes((q.correct_ans || '').trim())) {
+        if (q.correct_ans === 'A') correctText = q.ans_a;
+        else if (q.correct_ans === 'B') correctText = q.ans_b;
+        else if (q.correct_ans === 'C') correctText = q.ans_c;
+        else if (q.correct_ans === 'D') correctText = q.ans_d;
+      } else {
+        correctText = q.correct_ans;
+      }
+      if (typeof userAns === 'string' && userAns.trim().replace(/\s+/g, ' ') === String(correctText).trim().replace(/\s+/g, ' ')) correct++;
     }
     // 4. Tính điểm (thang điểm 10, làm tròn 2 số thập phân)
     const score = total > 0 ? Math.round((correct / total) * 10 * 100) / 100 : 0;
@@ -213,4 +272,5 @@ module.exports = {
   autoSubmitExamResult,
   getExamResultDetail,
   getExamResultsByStudent,
+  addViolationLog,
 };

@@ -8,15 +8,20 @@ const migrateColumnIfNotExists = async (db, table, column, typeDefault) => {
 };
 
 const migrations = [
+  // Migration: đổi kiểu correct_ans sang TEXT nếu chưa đúng
+  { table: 'questions', column: 'correct_ans', type: 'TEXT', alterType: true },
   // migration đăng ký ca thi
   { table: 'session_participants', column: 'has_joined', type: 'BOOLEAN DEFAULT FALSE' },
   // migration lưu log làm bài thi
   { table: 'exam_results', column: 'duration_seconds', type: 'INTEGER DEFAULT 0' },
   // migration ca thi
   { table: 'exam_sessions', column: 'grade', type: 'VARCHAR(20) NULL' },
-  { table: 'exam_sessions', column: 'lock_duration_seconds', type: 'INTEGER DEFAULT 120' },
+  { table: 'exam_sessions', column: 'lock_duration_seconds', type: 'INTEGER DEFAULT 10' },
+  { table: 'exam_sessions', column: 'max_participants', type: 'INTEGER DEFAULT NULL' },
   // migration exam_results: đảm bảo có is_submitted
   { table: 'exam_results', column: 'is_submitted', type: 'BOOLEAN DEFAULT FALSE' },
+  // migration exam_results: thêm violation_logs
+  { table: 'exam_results', column: 'violation_logs', type: "JSONB DEFAULT '[]'" },
   // migration cáu trúc đề thi
   { table: 'exam_templates', column: 'grade', type: 'INTEGER CHECK (grade IN (10, 11, 12))' },
   // migration đề thi
@@ -29,7 +34,19 @@ const migrations = [
 
 const runAllMigrations = async (db) => {
   for (const m of migrations) {
-    await migrateColumnIfNotExists(db, m.table, m.column, m.type);
+    if (m.alterType) {
+      // Kiểm tra kiểu dữ liệu cột correct_ans
+      const checkType = await db.query(`SELECT data_type FROM information_schema.columns WHERE table_name=$1 AND column_name=$2`, [
+        m.table,
+        m.column,
+      ]);
+      if (checkType.rows.length && checkType.rows[0].data_type !== 'text') {
+        await db.query(`ALTER TABLE ${m.table} ALTER COLUMN ${m.column} TYPE TEXT USING ${m.column}::TEXT`);
+        console.log(`Đã chuyển kiểu ${m.column} sang TEXT trong bảng ${m.table}`);
+      }
+    } else {
+      await migrateColumnIfNotExists(db, m.table, m.column, m.type);
+    }
   }
 };
 

@@ -5,6 +5,7 @@ const examAutoController = require('../controllers/examAutoController');
 router.get('/', examController.getAllExams);
 router.get('/:id/questions', examController.getQuestionsByExamId); // Thêm route lấy câu hỏi theo exam_id
 router.post('/auto-generate', examAutoController.autoGenerateExam);
+router.put('/:id', examController.updateExam);
 router.delete('/:id', examController.deleteExam);
 
 module.exports = router;

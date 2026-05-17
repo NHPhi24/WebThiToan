@@ -14,6 +14,8 @@ router.patch('/:session_id/:user_id/register-status', sessionParticipantControll
 router.get('/:session_id/users', sessionParticipantController.getUsersBySession);
 // Học sinh tự hủy đăng ký ca thi
 router.post('/cancel-register', sessionParticipantController.cancelRegister);
+// Import danh sách học sinh vào ca thi (qua file Excel)
+router.post('/import', sessionParticipantController.importSessionParticipants);
 
 // Học sinh bắt đầu vào phòng thi: cập nhật has_joined
 router.post('/mark-joined', sessionParticipantController.markJoined);

@@ -15,6 +15,7 @@ const EditExamPage = () => {
   const [saving, setSaving] = useState(false);
   const [editQuestionId, setEditQuestionId] = useState(null);
   const [editQuestion, setEditQuestion] = useState(null);
+  const [form] = Form.useForm();
   useEffect(() => {
     const fetchAll = async () => {
       setLoading(true);
@@ -27,6 +28,9 @@ const EditExamPage = () => {
         setExam(examRes);
         setTemplates(templateRes);
         setQuestions(questionRes);
+        if (examRes) {
+          form.setFieldsValue(examRes);
+        }
       } catch (err) {
         message.error('Không thể tải dữ liệu đề thi');
       } finally {
@@ -34,15 +38,25 @@ const EditExamPage = () => {
       }
     };
     fetchAll();
+    // eslint-disable-next-line
   }, [examId]);
 
   const handleExamSave = async (values) => {
     setSaving(true);
     try {
-      await api.updateExam(examId, values);
+      // Đảm bảo luôn gửi teacher_id: ưu tiên lấy từ exam, nếu không có thì lấy từ localStorage
+      let teacher_id = exam?.teacher_id;
+      if (!teacher_id) {
+        try {
+          const user = JSON.parse(localStorage.getItem('user'));
+          teacher_id = user?.id;
+        } catch {}
+      }
+      await api.updateExam(examId, { ...values, teacher_id });
       message.success('Cập nhật đề thi thành công');
       navigate('/qldethi');
-    } catch {
+    } catch (err) {
+      console.error('API updateExam error:', err);
       message.error('Cập nhật đề thi thất bại');
     } finally {
       setSaving(false);
@@ -96,7 +110,17 @@ const EditExamPage = () => {
     <div style={{ maxWidth: 900, margin: '0 auto', padding: 24 }}>
       <h2>Chỉnh sửa đề thi</h2>
       <Card style={{ marginBottom: 24 }}>
-        <Form layout="vertical" initialValues={exam} onFinish={handleExamSave}>
+        <Form
+          layout="vertical"
+          form={form}
+          initialValues={exam}
+          onFinish={handleExamSave}
+          onFinishFailed={({ errorFields }) => {
+            if (errorFields && errorFields.length > 0) {
+              message.error(errorFields[0].errors[0] || 'Vui lòng điền đầy đủ thông tin');
+            }
+          }}
+        >
           <Form.Item label="Mã đề thi" name="exam_code" rules={[{ required: true, message: 'Nhập mã đề thi' }]}>
             <Input />
           </Form.Item>

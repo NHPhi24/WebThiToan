@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import { Button, Table, Modal, Alert, message } from 'antd';
+import { Button, Table, Modal, Alert, message, Select } from 'antd';
 import api from '../../../services/api';
 import { useState, useRef } from 'react';
 import { DownloadOutlined } from '@ant-design/icons';
@@ -7,7 +7,6 @@ import { DownloadOutlined } from '@ant-design/icons';
 const USER_HEADERS = [
   'Tên đăng nhập', // username
   'Mật khẩu', // password
-  'Xác nhận mật khẩu', // confirm_password
   'Họ và tên', // full_name
   'Email', // email
   'Vai trò', // role
@@ -17,19 +16,17 @@ const USER_HEADERS = [
 const USER_FIELD_MAP = {
   'Tên đăng nhập': 'username',
   'Mật khẩu': 'password',
-  'Xác nhận mật khẩu': 'confirm_password',
   'Họ và tên': 'full_name',
   Email: 'email',
   'Vai trò': 'role',
   Khối: 'grade',
 };
 
-const USER_REQUIRED = ['username', 'password', 'confirm_password', 'full_name', 'role', 'grade'];
+const USER_REQUIRED = ['username', 'password', 'full_name', 'role', 'grade'];
 
 const USER_COLUMNS = [
   { title: 'Tên đăng nhập', dataIndex: 'username' },
   { title: 'Mật khẩu', dataIndex: 'password' },
-  { title: 'Xác nhận mật khẩu', dataIndex: 'confirm_password' },
   { title: 'Họ và tên', dataIndex: 'full_name' },
   { title: 'Email', dataIndex: 'email' },
   { title: 'Vai trò', dataIndex: 'role' },
@@ -40,6 +37,8 @@ const ImportUsers = ({ visible, onClose, onImported }) => {
   const [previewData, setPreviewData] = useState([]);
   const [validateErrors, setValidateErrors] = useState([]);
   const [importing, setImporting] = useState(false);
+  const [exportGradeModal, setExportGradeModal] = useState(false);
+  const [selectedGrade, setSelectedGrade] = useState();
   const fileInputRef = useRef();
 
   // Xuất file mẫu Excel
@@ -47,7 +46,17 @@ const ImportUsers = ({ visible, onClose, onImported }) => {
     const ws = XLSX.utils.aoa_to_sheet([USER_HEADERS]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'UsersTemplate');
-    XLSX.writeFile(wb, 'Cau_truc_mau_nhap_hoc_sinh.xlsx');
+    // Lấy role từ localStorage.user (object) thay vì chỉ lấy key 'role'
+    let role = '';
+    try {
+      const user = JSON.parse(localStorage.getItem('user'));
+      role = user?.role || '';
+    } catch (e) {
+      role = '';
+    }
+    const isAdmin = role.toUpperCase() === 'ADMIN';
+    const fileName = isAdmin ? 'Mau_nhap_nguoi_dung.xlsx' : 'Mau_nhap_hoc_sinh.xlsx';
+    XLSX.writeFile(wb, fileName);
   };
 
   // Đọc file Excel
@@ -77,17 +86,32 @@ const ImportUsers = ({ visible, onClose, onImported }) => {
       setPreviewData(mapped);
       // Validate
       let errors = [];
+      let existedUsernames = [];
+      try {
+        const res = await api.checkDuplicateUsers(mapped);
+        if (res.data.duplicates && res.data.duplicates.length > 0) {
+          res.data.duplicates.forEach((dup) => {
+            if (dup.duplicateUsername) existedUsernames.push(dup.username);
+            if (dup.duplicateUsername) errors.push({ row: dup.index + 2, message: 'Tên đăng nhập đã tồn tại' });
+            if (dup.duplicateEmail) errors.push({ row: dup.index + 2, message: 'Email đã tồn tại' });
+          });
+        }
+      } catch (err) {
+        errors.push({ row: 0, message: 'Lỗi kiểm tra trùng tài khoản với hệ thống' });
+      }
       mapped.forEach((row, idx) => {
-        USER_REQUIRED.forEach((field) => {
+        // Nếu là user mới (username chưa tồn tại), bắt buộc nhập đủ các trường
+        const isNewUser = !existedUsernames.includes(row.username);
+        USER_REQUIRED.filter((f) => f !== 'grade' && (isNewUser || f === 'username')).forEach((field) => {
           if (!row[field] || String(row[field]).trim() === '') {
             errors.push({ row: idx + 2, message: `${field} bắt buộc nhập` });
           }
         });
-        // So khớp mật khẩu và xác nhận mật khẩu
-        if (row['password'] !== row['confirm_password']) {
-          errors.push({ row: idx + 2, message: 'Mật khẩu và xác nhận mật khẩu không khớp' });
+        // Username không được chứa dấu cách
+        if (row.username && String(row.username).includes(' ')) {
+          errors.push({ row: idx + 2, message: 'Tên đăng nhập không được chứa dấu cách' });
         }
-        // Kiểm tra grade hợp lệ nếu là học sinh
+        // Chỉ bắt buộc grade nếu là học sinh
         if (row.role === 'STUDENT') {
           if (row.grade === '' || row.grade === undefined || row.grade === null) {
             errors.push({ row: idx + 2, message: 'Thiếu trường Khối đối với học sinh' });
@@ -118,27 +142,85 @@ const ImportUsers = ({ visible, onClose, onImported }) => {
   };
 
   // Import nhiều user
+  // Import nhiều user, cho phép import phần hợp lệ
+  const [importResult, setImportResult] = useState(null);
+  // Import nhiều user, cho phép import phần hợp lệ, xác nhận nếu có lỗi
   const handleImport = async () => {
-    setImporting(true);
-    let success = 0;
-    let fail = 0;
-    for (const user of previewData) {
-      try {
-        // Không gửi confirm_password lên BE, đảm bảo role luôn uppercase
-        const { confirm_password, ...userData } = user;
-        userData.role = (userData.role || '').toUpperCase();
-        await api.createUser(userData);
-        success++;
-      } catch (err) {
-        fail++;
-      }
+    if (validateErrors.length > 0) {
+      const errorRows = validateErrors.map((e) => e.row).join(', ');
+      Modal.confirm({
+        title: 'Có dữ liệu không hợp lệ!',
+        content: `Dòng lỗi: ${errorRows}. Bạn có muốn xác nhận import các bản ghi hợp lệ không?`,
+        okText: 'Xác nhận',
+        cancelText: 'Hủy',
+        onOk: async () => {
+          await doImport(true);
+        },
+      });
+      return;
     }
-    message.success(`Import thành công: ${success}, thất bại: ${fail}`);
-    setImporting(false);
-    setPreviewData([]);
-    setValidateErrors([]);
-    if (onImported) onImported();
-    if (onClose) onClose();
+    await doImport(false);
+  };
+
+  // Thực hiện import, nếu skipInvalid=true thì chỉ gửi bản ghi hợp lệ
+  const doImport = async (skipInvalid) => {
+    setImporting(true);
+    try {
+      let dataToImport = previewData;
+      if (skipInvalid) {
+        const invalidRows = validateErrors.map((e) => e.row);
+        dataToImport = previewData.filter((_, idx) => !invalidRows.includes(idx + 2));
+      }
+      if (dataToImport.length === 0) {
+        message.error('Không có bản ghi hợp lệ nào để import!');
+        setImporting(false);
+        return;
+      }
+      const res = await api.importUsers(dataToImport);
+      setImportResult(res.data);
+      const success = res.data.filter((r) => r.status === 'created').length;
+      const fail = res.data.length - success;
+      message.success(`Import thành công: ${success}, thất bại: ${fail}`);
+      setPreviewData([]);
+      setValidateErrors([]);
+      if (onImported) onImported();
+    } catch (err) {
+      message.error('Import thất bại: ' + (err?.response?.data?.error || err?.message || 'Lỗi không xác định'));
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleExportUserInGrade = async (grade) => {
+    if (!grade || !['10', '11', '12'].includes(String(grade))) {
+      message.error('Vui lòng chọn lớp hợp lệ (10, 11 hoặc 12)');
+      return;
+    }
+    try {
+      const res = await api.getAllStudents(String(grade));
+      const students = res.data || [];
+      if (students.length === 0) {
+        message.info('Không có học sinh nào trong lớp này!');
+        return;
+      }
+      // Chuyển về định dạng xuất Excel đúng mẫu import ca thi
+      const exportData = students.map((u) => ({
+        'Tên đăng nhập': u.username,
+        'Mật khẩu': '',
+        'Tên học sinh': u.full_name,
+        Email: u.email,
+        Khối: u.grade,
+      }));
+      const headers = ['Tên đăng nhập', 'Mật khẩu', 'Tên học sinh', 'Email', 'Khối'];
+      const ws = XLSX.utils.json_to_sheet(exportData, { header: headers });
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, `Lop${grade}`);
+      XLSX.writeFile(wb, `Danh_sach_hoc_sinh_lop_${grade}.xlsx`);
+      setExportGradeModal(false);
+      setSelectedGrade(undefined);
+    } catch (err) {
+      message.error('Lỗi khi xuất file excel theo lớp');
+    }
   };
 
   return (
@@ -151,23 +233,21 @@ const ImportUsers = ({ visible, onClose, onImported }) => {
         <Button key="export" icon={<DownloadOutlined />} onClick={handleExportTemplate}>
           Tải file mẫu Excel
         </Button>,
+        <Button key="exportByGrade" icon={<DownloadOutlined />} onClick={() => setExportGradeModal(true)}>
+          Xuất file excel theo lớp
+        </Button>,
         <Button
           key="refresh"
           onClick={() => {
             setPreviewData([]);
             setValidateErrors([]);
+            setImportResult(null);
             if (fileInputRef.current) fileInputRef.current.value = '';
           }}
         >
           Làm Mới
         </Button>,
-        <Button
-          key="import"
-          type="primary"
-          disabled={previewData.length === 0 || validateErrors.length > 0}
-          loading={importing}
-          onClick={handleImport}
-        >
+        <Button key="import" type="primary" disabled={previewData.length === 0} loading={importing} onClick={handleImport}>
           Import
         </Button>,
         <Button key="close" onClick={onClose}>
@@ -176,6 +256,31 @@ const ImportUsers = ({ visible, onClose, onImported }) => {
       ]}
     >
       <p>Bạn có thể tải file mẫu Excel để nhập học sinh/giáo viên theo đúng cấu trúc.</p>
+      <Modal
+        open={exportGradeModal}
+        title="Chọn lớp muốn xuất"
+        onCancel={() => {
+          setExportGradeModal(false);
+          setSelectedGrade(undefined);
+        }}
+        onOk={() => handleExportUserInGrade(selectedGrade)}
+        okText="Xuất file"
+        cancelText="Hủy"
+      >
+        <div style={{ margin: '16px 0' }}>
+          <Select
+            style={{ width: 200 }}
+            placeholder="Chọn lớp"
+            value={selectedGrade}
+            onChange={setSelectedGrade}
+            options={[
+              { value: '10', label: 'Lớp 10' },
+              { value: '11', label: 'Lớp 11' },
+              { value: '12', label: 'Lớp 12' },
+            ]}
+          />
+        </div>
+      </Modal>
       <input type="file" accept=".xlsx, .xls" style={{ marginTop: 16, marginBottom: 16 }} onChange={handleFileChange} ref={fileInputRef} />
       {validateErrors.length > 0 && (
         <Alert
@@ -197,10 +302,35 @@ const ImportUsers = ({ visible, onClose, onImported }) => {
       {previewData.length > 0 && (
         <Table
           dataSource={previewData.map((row, idx) => ({ ...row, key: idx }))}
-          columns={USER_COLUMNS}
+          columns={(() => {
+            // Nếu có ít nhất 1 học sinh thì hiển thị cột khối/lớp, còn lại ẩn
+            const hasStudent = previewData.some((row) => row.role === 'STUDENT');
+            if (hasStudent) return USER_COLUMNS;
+            // Ẩn cột khối/lớp nếu không có học sinh
+            return USER_COLUMNS.filter((col) => col.dataIndex !== 'grade');
+          })()}
           pagination={{ pageSize: 10 }}
           scroll={{ x: true }}
         />
+      )}
+      {/* Hiển thị kết quả import từng dòng */}
+      {importResult && (
+        <div style={{ marginTop: 16 }}>
+          <Alert
+            type="info"
+            message="Kết quả import từng dòng"
+            description={
+              <ul style={{ margin: 0 }}>
+                {importResult.map((r, idx) => (
+                  <li key={idx} style={{ color: r.status === 'created' ? 'green' : 'red' }}>
+                    {r.username}: {r.status === 'created' ? 'Thành công' : r.error || r.status}
+                  </li>
+                ))}
+              </ul>
+            }
+            showIcon
+          />
+        </div>
       )}
     </Modal>
   );

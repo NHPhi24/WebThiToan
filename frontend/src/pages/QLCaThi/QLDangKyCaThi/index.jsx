@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import ImportDKCaThi from './ImportDKCaThi';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Table, message, Tag, Button, Popconfirm, Tooltip } from 'antd';
 import SearchInput from '../../../components/SearchInput';
@@ -27,15 +28,19 @@ const QLDangKyCaThi = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [sessionName, setSessionName] = useState('');
   const [addStudentModalOpen, setAddStudentModalOpen] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [maxParticipants, setMaxParticipants] = useState(null);
   const navigate = useNavigate();
 
   const fetchSessionName = async () => {
     try {
       const res = await api.getExamSessionById(sessionId);
       setSessionName(res.data.session_name || '');
+      setMaxParticipants(res.data.max_participants || null);
     } catch {
       setSessionName('');
+      setMaxParticipants(null);
     }
   };
 
@@ -147,9 +152,9 @@ const QLDangKyCaThi = () => {
       render: (_, record) => {
         return (
           <ActionIcons
-            handleDelete={isTeacher && record.register_status === 50 ? () => handleRemove(record.session_id, record.user_id) : undefined}
+            handleDelete={isTeacher ? () => handleRemove(record.session_id, record.user_id) : undefined}
             handleEdit={
-              isTeacher && record.register_status !== 20
+              isTeacher
                 ? async () => {
                     try {
                       const res = await api.getUserById(record.user_id);
@@ -178,7 +183,7 @@ const QLDangKyCaThi = () => {
             }
             handleApprove={isTeacher && record.register_status === 10 ? () => handleApprove(record.session_id, record.user_id) : undefined}
             handleReject={isTeacher && record.register_status === 10 ? () => handleReject(record.session_id, record.user_id) : undefined}
-            canEdit={record.register_status !== 20}
+            canEdit={true}
             showPopconfirm={true}
             handleView={async () => {
               try {
@@ -206,9 +211,13 @@ const QLDangKyCaThi = () => {
       <div style={{ marginBottom: 16, display: 'flex', gap: 12, alignItems: 'center' }}>
         <Button onClick={() => navigate(-1)}>Quay lại</Button>
 
-        {!isTeacher && (
+        {/* {!isTeacher && (
           <>
-            <Button type="primary" onClick={() => setModalOpen({ open: true, isDangKyThi: true })} disabled={isRegisteredThisSession()}>
+            <Button
+              type="primary"
+              onClick={() => setModalOpen({ open: true, isDangKyThi: true })}
+              disabled={isRegisteredThisSession() || (maxParticipants !== null && data.length >= maxParticipants)}
+            >
               Đăng ký thi
             </Button>
             {isRegisteredThisSession() && (
@@ -217,11 +226,16 @@ const QLDangKyCaThi = () => {
               </Button>
             )}
           </>
-        )}
+        )} */}
         {isTeacher && (
-          <Button type="primary" onClick={() => setAddStudentModalOpen(true)}>
-            Tạo học sinh tham gia thi
-          </Button>
+          <>
+            <Button type="primary" onClick={() => setAddStudentModalOpen(true)}>
+              Tạo học sinh tham gia thi
+            </Button>
+            <Button style={{ marginLeft: 8 }} onClick={() => setImportModalOpen(true)}>
+              Import
+            </Button>
+          </>
         )}
         <SearchInput
           placeholder="Tìm kiếm theo tên người đăng ký..."
@@ -278,6 +292,7 @@ const QLDangKyCaThi = () => {
         }}
         editUser={editUser}
       />
+      <ImportDKCaThi visible={importModalOpen} onClose={() => setImportModalOpen(false)} sessionId={sessionId} onImport={fetchData} />
     </div>
   );
 };

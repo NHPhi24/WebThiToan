@@ -8,12 +8,20 @@ const { Title } = Typography;
 const SystemLogs = () => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [userMap, setUserMap] = useState({});
 
   const fetchLogs = async () => {
     setLoading(true);
     try {
-      const response = await apiService.getAllSystemLogs();
-      setLogs(response.data);
+      // Lấy logs và users song song
+      const [logsRes, usersRes] = await Promise.all([apiService.getAllSystemLogs(), apiService.getAllUsers()]);
+      setLogs(logsRes.data);
+      // Tạo map id -> tên
+      const map = {};
+      (usersRes.data || []).forEach((u) => {
+        map[u.id] = u.full_name || u.username || u.email || u.id;
+      });
+      setUserMap(map);
     } catch (error) {
       console.error('Fetch system logs error:', error);
       message.error('Không thể tải lịch sử hệ thống');
@@ -58,18 +66,13 @@ const SystemLogs = () => {
       key: 'resource_name',
       width: 180,
     },
-    // {
-    //   title: 'Thực hiện bởi',
-    //   dataIndex: 'created_by',
-    //   key: 'created_by',
-    //   width: 160,
-    // },
-    // {
-    //   title: 'Chi tiết',
-    //   dataIndex: 'details',
-    //   key: 'details',
-    //   render: (details) => <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', margin: 0 }}>{JSON.stringify(details || {}, null, 2)}</pre>,
-    // },
+    {
+      title: 'Người thực hiện',
+      dataIndex: 'actor_id',
+      key: 'actor_id',
+      width: 160,
+      render: (actor_id) => userMap[actor_id] || actor_id || '-',
+    },
   ];
 
   return (

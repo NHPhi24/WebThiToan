@@ -42,6 +42,35 @@ const db = require('../data/db');
 const Exam = require('../entities/exam');
 const Question = require('../entities/question');
 
+const shuffleArray = (arr) => {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+};
+
+const shuffleAnswers = (q) => {
+  // Đảo ngẫu nhiên đáp án A/B/C/D và cập nhật lại correct_ans
+  const options = [
+    { key: 'A', text: q.ans_a },
+    { key: 'B', text: q.ans_b },
+    { key: 'C', text: q.ans_c },
+    { key: 'D', text: q.ans_d },
+  ];
+  const shuffled = shuffleArray(options);
+  const keyMap = ['A', 'B', 'C', 'D'];
+  const newQ = { ...q };
+  shuffled.forEach((opt, idx) => {
+    newQ[`ans_${keyMap[idx].toLowerCase()}`] = opt.text;
+    if (opt.key === q.correct_ans) {
+      newQ.correct_ans = keyMap[idx];
+    }
+  });
+  return newQ;
+};
+
 const startExamSessionForStudent = async (req, res) => {
   const { id } = req.params; // sessionId
   try {
@@ -49,11 +78,9 @@ const startExamSessionForStudent = async (req, res) => {
     const sessionRes = await db.query('SELECT * FROM exam_sessions WHERE id = $1', [id]);
     if (sessionRes.rows.length === 0) return res.status(404).json({ error: 'Exam session not found' });
     const session = sessionRes.rows[0];
-    const examIds = session.exam_ids || [];
-    if (!examIds.length) return res.status(400).json({ error: 'Ca thi chưa có mã đề nào' });
-    // Random 1 mã đề
-    const randomIdx = Math.floor(Math.random() * examIds.length);
-    const examId = examIds[randomIdx];
+    // Chỉ lấy 1 đề duy nhất cho ca thi
+    const examId = Array.isArray(session.exam_ids) ? session.exam_ids[0] : session.exam_ids;
+    if (!examId) return res.status(400).json({ error: 'Ca thi chưa có mã đề nào' });
     // Lấy thông tin mã đề
     const examRes = await db.query('SELECT * FROM exams WHERE id = $1', [examId]);
     if (examRes.rows.length === 0) return res.status(404).json({ error: 'Exam not found' });
@@ -63,7 +90,9 @@ const startExamSessionForStudent = async (req, res) => {
       `SELECT q.*, eq.order_index FROM exam_questions eq JOIN questions q ON eq.question_id = q.id WHERE eq.exam_id = $1 ORDER BY eq.order_index ASC`,
       [examId],
     );
-    const questions = qRes.rows.map((row) => ({ ...Question.fromRow(row), order_index: row.order_index }));
+    let questions = qRes.rows.map((row) => ({ ...Question.fromRow(row), order_index: row.order_index }));
+    // Đảo ngẫu nhiên thứ tự câu hỏi
+    questions = shuffleArray(questions).map(shuffleAnswers);
     res.json({
       exam_id: exam.id,
       exam_code: exam.exam_code,
@@ -182,7 +211,7 @@ const getAllExamSessions = async (req, res) => {
 };
 
 const createExamSession = async (req, res) => {
-  const { session_name, start_time, duration, teacher_id, status, exam_ids, grade, lock_duration_seconds } = req.body;
+  const { session_name, start_time, duration, teacher_id, status, exam_ids, grade, lock_duration_seconds, max_participants } = req.body;
 
   try {
     // Kiểm tra trùng tên ca thi
@@ -192,10 +221,20 @@ const createExamSession = async (req, res) => {
     }
 
     const result = await db.query(
-      `INSERT INTO exam_sessions (session_name, start_time, duration, teacher_id, status, exam_ids, grade, lock_duration_seconds)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `INSERT INTO exam_sessions (session_name, start_time, duration, teacher_id, status, exam_ids, grade, lock_duration_seconds, max_participants)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
-      [session_name, start_time, duration, teacher_id, status || 'READY', exam_ids || [], grade, lock_duration_seconds || 10],
+      [
+        session_name,
+        start_time,
+        duration,
+        teacher_id,
+        status || 'READY',
+        exam_ids || [],
+        grade,
+        lock_duration_seconds || 10,
+        max_participants ?? null,
+      ],
     );
 
     await createAuditLog({
@@ -205,7 +244,7 @@ const createExamSession = async (req, res) => {
       resource_type: 'exam_session',
       resource_id: result.rows[0].id?.toString() || null,
       resource_name: result.rows[0].session_name,
-      details: { start_time, duration, status, teacher_id, exam_ids, grade, lock_duration_seconds },
+      details: { start_time, duration, status, teacher_id, exam_ids, grade, lock_duration_seconds, max_participants },
     });
 
     res.status(201).json({ ...ExamSession.fromRow(result.rows[0]), created_at: new Date() });
@@ -235,11 +274,11 @@ const getExamSessionById = async (req, res) => {
 // Sửa ca thi
 const updateExamSession = async (req, res) => {
   const { id } = req.params;
-  const { session_name, start_time, duration, teacher_id, status, exam_ids, grade, lock_duration_seconds } = req.body;
+  const { session_name, start_time, duration, teacher_id, status, exam_ids, grade, lock_duration_seconds, max_participants } = req.body;
   try {
     const result = await db.query(
-      `UPDATE exam_sessions SET session_name=$1, start_time=$2, duration=$3, teacher_id=$4, status=$5, exam_ids=$6, grade=$7, lock_duration_seconds=$8 WHERE id=$9 RETURNING *`,
-      [session_name, start_time, duration, teacher_id, status, exam_ids || [], grade, lock_duration_seconds || 10, id],
+      `UPDATE exam_sessions SET session_name=$1, start_time=$2, duration=$3, teacher_id=$4, status=$5, exam_ids=$6, grade=$7, lock_duration_seconds=$8, max_participants=$9 WHERE id=$10 RETURNING *`,
+      [session_name, start_time, duration, teacher_id, status, exam_ids || [], grade, lock_duration_seconds || 10, max_participants ?? null, id],
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Exam session not found' });
@@ -251,7 +290,7 @@ const updateExamSession = async (req, res) => {
       resource_type: 'exam_session',
       resource_id: id,
       resource_name: session_name,
-      details: { start_time, duration, status, teacher_id, exam_ids, grade, lock_duration_seconds },
+      details: { start_time, duration, status, teacher_id, exam_ids, grade, lock_duration_seconds, max_participants },
     });
     res.json(ExamSession.fromRow(result.rows[0]));
   } catch (error) {

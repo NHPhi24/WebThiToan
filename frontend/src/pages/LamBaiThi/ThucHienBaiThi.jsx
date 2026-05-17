@@ -1,8 +1,7 @@
 import VoHieu from './VoHieu';
-import { Modal } from 'antd';
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Card, Button, Radio, Progress, message } from 'antd';
+import { Card, Button, Radio, Progress, message, Modal } from 'antd';
 import participantApi from '../../services/participantApi';
 import api from '../../services/api';
 import MathText from '../../utils/MathText';
@@ -51,12 +50,24 @@ const ThucHienBaiThi = ({ setSidebarCollapsed }) => {
   const [session, setSession] = useState(null);
   // Trạng thái khoá bài khi chuyển tab
   const [locked, setLocked] = useState(false);
-  const [lockCountdown, setLockCountdown] = useState(120); // 2 phút
+  const [lockCountdown, setLockCountdown] = useState(120); // 2 phút mặc định
   const [showUnlockBtn, setShowUnlockBtn] = useState(false);
   const [viPhamCount, setViPhamCount] = useState(0); // Đếm số lần vi phạm
   const [lockDuration, setLockDuration] = useState(120); // Thời gian khoá lấy từ ca thi
-  // Khi vi phạm (chuyển tab/cửa sổ), khoá bài và bắt đầu đếm ngược
+
+  // Khi vi phạm (chuyển tab/cửa sổ), khoá bài và bắt đầu đếm ngược, đồng thời ghi log vi phạm
   const handleViPham = () => {
+    // Ghi log vi phạm lên BE
+    if (user?.id && sessionId) {
+      api
+        .addViolationLog({
+          student_id: user.id,
+          session_id: sessionId,
+          type: 'tab_switch',
+          note: 'Chuyển tab hoặc cửa sổ khi làm bài',
+        })
+        .catch(() => {});
+    }
     setViPhamCount((prev) => {
       // Nếu đã locked thì không tăng tiếp và không nộp bài tự động nữa
       if (locked) return prev;
@@ -87,6 +98,8 @@ const ThucHienBaiThi = ({ setSidebarCollapsed }) => {
   const [examCode, setExamCode] = useState('');
   const [initDone, setInitDone] = useState(false);
   const [current, setCurrent] = useState(0);
+  // Lưu các câu đã xem nhưng chưa trả lời
+  const [viewedQuestions, setViewedQuestions] = useState([]);
   const [answers, setAnswers] = useState({});
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -117,28 +130,22 @@ const ThucHienBaiThi = ({ setSidebarCollapsed }) => {
           console.error('Lỗi khi kiểm tra bản ghi kết quả:', err);
         }
         if (existedResult) {
-          // Đã có: dùng lại exam_id, exam_result_id, lấy lại câu hỏi theo exam_id cũ
+          // Đã có: dùng lại exam_id, exam_result_id, lấy lại câu hỏi random từ BE (đảm bảo đúng thứ tự và đáp án)
           setExamId(existedResult.exam_id);
           setExamResultId(existedResult.id);
-          // Lấy lại câu hỏi theo exam_id cũ
           try {
-            const examQuestions = await api.getQuestionsByExamId(existedResult.exam_id);
-            setQuestions(examQuestions.data || []);
+            // Gọi lại startExamSession để lấy lại thứ tự random câu hỏi/đáp án đúng với lần đầu
+            const examRes = await api.startExamSession(sessionId);
+            setQuestions(examRes.data.questions || []);
+            setExamCode(examRes.data.exam_code);
           } catch {
             setQuestions([]);
+            setExamCode('');
           }
           setAnswers(existedResult.answers_log || {});
           setCurrent(0);
-          // Lấy lại mã đề từ danh sách đề
-          try {
-            const allExams = await api.getAllExams();
-            const foundExam = (allExams.data || []).find((e) => e.id === existedResult.exam_id);
-            setExamCode(foundExam ? foundExam.exam_code : '');
-          } catch {
-            setExamCode('');
-          }
         } else {
-          // Chưa có: random mã đề mới và tạo bản ghi mới
+          // Chưa có: lấy đề và random từ BE, tạo bản ghi mới
           const examRes = await api.startExamSession(sessionId);
           setExamId(examRes.data.exam_id);
           setExamCode(examRes.data.exam_code);
@@ -212,17 +219,36 @@ const ThucHienBaiThi = ({ setSidebarCollapsed }) => {
     return () => clearInterval(timer);
   }, [timeLeft, submitting, autoSubmitted, user?.id, examId, sessionId, navigate, totalTime]);
 
+  // Khi chuyển câu hỏi, đánh dấu đã xem nếu chưa trả lời
+  const handleSetCurrent = (idx) => {
+    const qid = questions[idx]?.id;
+    if (qid && !answers[qid] && !viewedQuestions.includes(qid)) {
+      setViewedQuestions((prev) => [...prev, qid]);
+    }
+    setCurrent(idx);
+  };
+
   const handleAnswer = async (qid, val) => {
+    // Lưu key đáp án (A/B/C/D) vào state
     const newAnswers = { ...answers, [qid]: val };
     setAnswers(newAnswers);
-    // Lưu đáp án tạm thời lên server (is_submitted: false), chỉ update bản ghi đã có
+    // Khi gửi lên BE, chuyển sang nội dung đáp án
+    const fullAnswers = {};
+    questions.forEach((q) => {
+      const key = newAnswers[q.id];
+      let answerText = '';
+      if (key === 'A') answerText = q.ans_a;
+      else if (key === 'B') answerText = q.ans_b;
+      else if (key === 'C') answerText = q.ans_c;
+      else if (key === 'D') answerText = q.ans_d;
+      fullAnswers[q.id] = answerText || '';
+    });
     try {
-      // Luôn update, không tạo mới
       await api.createExamResult({
         student_id: user?.id,
         exam_id: examId,
         session_id: sessionId,
-        answers_log: newAnswers,
+        answers_log: fullAnswers,
         is_submitted: false,
         submitted_at: null,
         duration_seconds: totalTime - timeLeft,
@@ -237,18 +263,42 @@ const ThucHienBaiThi = ({ setSidebarCollapsed }) => {
     }, 100);
   };
 
+  const [confirmModalVisible, setConfirmModalVisible] = useState(false);
+  const [isViPhamSubmit, setIsViPhamSubmit] = useState(false);
+
   const handleSubmit = async (isViPham = false) => {
+    if (isViPham) {
+      // Nộp do vi phạm, bỏ qua xác nhận
+      await doSubmit(true);
+      return;
+    }
+    setIsViPhamSubmit(false);
+    setConfirmModalVisible(true);
+  };
+
+  const doSubmit = async (isViPham = false) => {
     if (submitting) return;
     setSubmitting(true);
     setLocked(false); // Đảm bảo đóng modal vi phạm khi nộp bài chủ động
+    // Đảm bảo mọi câu hỏi đều có key, nếu chưa trả lời thì là ""
+    const fullAnswers = {};
+    questions.forEach((q) => {
+      const key = answers[q.id];
+      let answerText = '';
+      if (key === 'A') answerText = q.ans_a;
+      else if (key === 'B') answerText = q.ans_b;
+      else if (key === 'C') answerText = q.ans_c;
+      else if (key === 'D') answerText = q.ans_d;
+      fullAnswers[q.id] = answerText || '';
+    });
     try {
       const duration_seconds = totalTime - timeLeft;
-      // Luôn update, không tạo mới
+      console.log('answers_log gửi lên BE (doSubmit):', fullAnswers);
       await api.createExamResult({
         student_id: user?.id,
         exam_id: examId,
         session_id: sessionId,
-        answers_log: answers,
+        answers_log: fullAnswers,
         is_submitted: true,
         submitted_at: new Date().toISOString(),
         duration_seconds,
@@ -263,6 +313,7 @@ const ThucHienBaiThi = ({ setSidebarCollapsed }) => {
       message.error('Nộp bài thất bại!');
     } finally {
       setSubmitting(false);
+      setConfirmModalVisible(false);
     }
   };
 
@@ -284,7 +335,6 @@ const ThucHienBaiThi = ({ setSidebarCollapsed }) => {
   return (
     <>
       <VoHieu onViPham={handleViPham} />
-      {/* Lớp phủ nền đen khi bị khoá */}
       {locked && (
         <div
           style={{
@@ -366,15 +416,15 @@ const ThucHienBaiThi = ({ setSidebarCollapsed }) => {
             </Radio.Group>
           </Card>
           <div style={{ marginTop: 24, display: 'flex', justifyContent: 'space-between' }}>
-            <Button onClick={() => setCurrent((c) => Math.max(0, c - 1))} disabled={current === 0}>
+            <Button onClick={() => handleSetCurrent(Math.max(0, current - 1))} disabled={current === 0}>
               Câu trước
             </Button>
             {current === questions.length - 1 ? (
-              <Button type="primary" onClick={handleSubmit} loading={submitting}>
+              <Button type="primary" onClick={() => handleSubmit(false)} loading={submitting}>
                 Nộp bài
               </Button>
             ) : (
-              <Button type="primary" onClick={() => setCurrent((c) => Math.min(questions.length - 1, c + 1))}>
+              <Button type="primary" onClick={() => handleSetCurrent(Math.min(questions.length - 1, current + 1))}>
                 Câu tiếp theo
               </Button>
             )}
@@ -403,19 +453,23 @@ const ThucHienBaiThi = ({ setSidebarCollapsed }) => {
           <div style={{ fontWeight: 600, marginBottom: 8 }}>Danh sách câu hỏi</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
             {questions.map((ques, idx) => {
-              // Chỉ tô xanh khi đã chọn đáp án (A/B/C/D), không tô nếu undefined/null/""
-              const answered = ['A', 'B', 'C', 'D'].includes(answers[ques.id]);
+              const answered = !!answers[ques.id] && answers[ques.id].trim() !== '';
               const isCurrent = idx === current;
+              const viewed = viewedQuestions.includes(ques.id);
+              let bg = '#fff';
+              if (answered)
+                bg = '#85b4e3'; // đã trả lời
+              else if (viewed) bg = '#d9d9d9'; // đã xem nhưng chưa trả lời
               return (
                 <button
                   key={ques.id}
-                  onClick={() => setCurrent(idx)}
+                  onClick={() => handleSetCurrent(idx)}
                   style={{
                     width: 32,
                     height: 32,
                     borderRadius: '50%',
                     border: isCurrent ? '2px solid #1890ff' : '1px solid #ccc',
-                    background: answered ? '#85b4e3' : '#fff',
+                    background: bg,
                     color: isCurrent ? '#1890ff' : '#333',
                     fontWeight: answered ? 600 : 400,
                     cursor: 'pointer',
@@ -432,6 +486,41 @@ const ThucHienBaiThi = ({ setSidebarCollapsed }) => {
           </div>
         </div>
       </div>
+      {/* Modal xác nhận nộp bài */}
+      <Modal
+        open={confirmModalVisible}
+        onCancel={() => setConfirmModalVisible(false)}
+        onOk={() => doSubmit(false)}
+        okText="Xác nhận nộp bài"
+        cancelText="Quay lại"
+        title="Xác nhận nộp bài"
+        centered
+        confirmLoading={submitting}
+      >
+        {(() => {
+          // Đếm số câu đã trả lời: chỉ tính những câu đã chọn đáp án (A/B/C/D)
+          const answeredCount = questions.filter((q) => answers[q.id]).length;
+          // Các câu chưa trả lời: chưa chọn đáp án (answers[q.id] là undefined hoặc rỗng)
+          const unanswered = questions.filter((q) => !answers[q.id]);
+          return (
+            <div>
+              <p>
+                Bạn đã trả lời <b>{answeredCount}</b> / <b>{questions.length}</b> câu hỏi.
+              </p>
+              {unanswered.length > 0 ? (
+                <div>
+                  <p style={{ color: '#faad14' }}>
+                    Các câu chưa trả lời: {unanswered.map((q) => questions.findIndex((ques) => ques.id === q.id) + 1).join(', ')}
+                  </p>
+                  <p>Bạn có chắc chắn muốn nộp bài không?</p>
+                </div>
+              ) : (
+                <p>Bạn đã trả lời hết tất cả các câu hỏi. Xác nhận nộp bài?</p>
+              )}
+            </div>
+          );
+        })()}
+      </Modal>
     </>
   );
 };

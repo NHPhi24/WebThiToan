@@ -8,6 +8,8 @@ router.post('/login', userController.loginUser);
 // Các route dưới đây yêu cầu xác thực JWT
 router.use(authenticateToken);
 router.post('/check-duplicates', userController.checkDuplicateUsers);
+// Import nhiều user, cho phép import phần hợp lệ
+router.post('/import', userController.importUsers);
 router.post('/:id/change-password', userController.changePassword);
 router.get('/students', userController.getAllStudents);
 router.get('/', userController.getAllUsers);

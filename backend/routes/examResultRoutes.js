@@ -10,7 +10,11 @@ router.get('/student', examResultController.getExamResultsByStudent);
 router.get('/:id', examResultController.getExamResultDetail);
 // Nộp chủ động (manual submit)
 router.post('/', examResultController.createExamResult);
+
 // Nộp tự động (auto submit)
 router.post('/auto-submit', examResultController.autoSubmitExamResult);
+
+// Ghi log vi phạm
+router.post('/violation-log', examResultController.addViolationLog);
 
 module.exports = router;

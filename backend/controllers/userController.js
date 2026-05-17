@@ -1,3 +1,80 @@
+// Import nhiều user, cho phép import phần hợp lệ, trả về kết quả từng dòng
+const importUsers = async (req, res) => {
+  const users = req.body.users || [];
+  if (!Array.isArray(users) || users.length === 0) {
+    return res.status(400).json({ error: 'Danh sách users không hợp lệ' });
+  }
+  try {
+    // Lấy tất cả username và email cần kiểm tra
+    const usernames = users.map((u) => u.username).filter(Boolean);
+    const emails = users.map((u) => u.email).filter(Boolean);
+    // Truy vấn các user đã tồn tại theo username hoặc email
+    const result = await db.query(`SELECT username, email FROM users WHERE username = ANY($1) OR email = ANY($2)`, [usernames, emails]);
+    const existed = result.rows;
+    const importResults = [];
+    for (const user of users) {
+      // Kiểm tra trường bắt buộc (grade chỉ bắt buộc nếu là STUDENT)
+      if (
+        !user.username ||
+        !user.password ||
+        !user.full_name ||
+        !user.role ||
+        (user.role.toUpperCase() === 'STUDENT' && (user.grade === undefined || user.grade === null || user.grade === ''))
+      ) {
+        importResults.push({ username: user.username, status: 'invalid', error: 'Thiếu trường bắt buộc' });
+        continue;
+      }
+      // Username không được chứa dấu cách
+      if (typeof user.username === 'string' && user.username.includes(' ')) {
+        importResults.push({ username: user.username, status: 'invalid', error: 'Tên đăng nhập không được chứa dấu cách' });
+        continue;
+      }
+      // Kiểm tra role
+      const role = (user.role || '').toUpperCase();
+      if (!['STUDENT', 'TEACHER', 'ADMIN'].includes(role)) {
+        importResults.push({ username: user.username, status: 'invalid', error: 'Role không hợp lệ' });
+        continue;
+      }
+      // Nếu là học sinh, kiểm tra grade hợp lệ
+      if (role === 'STUDENT' && ![10, 11, 12].includes(Number(user.grade))) {
+        importResults.push({ username: user.username, status: 'invalid', error: 'Khối phải là 10, 11 hoặc 12 với học sinh' });
+        continue;
+      }
+      // Kiểm tra trùng username/email
+      const usernameDup = existed.find((e) => e.username === user.username);
+      if (usernameDup) {
+        importResults.push({ username: user.username, status: 'duplicate_username', error: 'Username đã tồn tại' });
+        continue;
+      }
+      const emailDup = user.email && existed.find((e) => e.email === user.email);
+      if (emailDup) {
+        importResults.push({ username: user.username, status: 'duplicate_email', error: 'Email đã tồn tại' });
+        continue;
+      }
+      // Tạo user mới
+      try {
+        // Nếu không phải học sinh hoặc grade rỗng thì set null
+        let gradeValue = user.grade;
+        if (role !== 'STUDENT' || gradeValue === '' || gradeValue === undefined || gradeValue === null) {
+          gradeValue = null;
+        }
+        const insertRes = await db.query(
+          `INSERT INTO users (username, password, full_name, email, role, grade) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, username, full_name, email, role, grade`,
+          [user.username, user.password, user.full_name, user.email, role, gradeValue],
+        );
+        importResults.push({ username: user.username, status: 'created', data: insertRes.rows[0] });
+        // Thêm vào existed để tránh trùng tiếp các bản ghi sau
+        existed.push({ username: user.username, email: user.email });
+      } catch (err) {
+        importResults.push({ username: user.username, status: 'error', error: err.message });
+      }
+    }
+    res.status(201).json(importResults);
+  } catch (error) {
+    console.error('importUsers error:', error);
+    res.status(500).json({ error: 'Lỗi import users', detail: error.message });
+  }
+};
 // Kiểm tra trùng username và email cho import user
 const checkDuplicateUsers = async (req, res) => {
   const users = req.body.users || [];
@@ -71,13 +148,14 @@ const getUserById = async (req, res) => {
   const { id } = req.params;
   try {
     const result = await db.query(
-      'SELECT id, username, full_name, email, role, created_by, profile_info, created_at, grade FROM users WHERE id = $1',
+      'SELECT id, username, password, full_name, email, role, created_by, profile_info, created_at, grade FROM users WHERE id = $1',
       [id],
     );
     if (result.rowCount === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
-    const user = User.fromRow(result.rows[0]);
+    // Trả về cả password để giáo viên có thể hỗ trợ học sinh tìm lại mật khẩu
+    const user = result.rows[0];
     res.json(user);
   } catch (error) {
     console.error('getUserById error:', error);
@@ -290,4 +368,5 @@ module.exports = {
   changePassword,
   checkDuplicateUsers,
   authenticateToken,
+  importUsers,
 };

@@ -101,74 +101,49 @@ const AddStudentToSessionModal = ({ open, onClose, sessionId, onSuccess, editUse
 
   return (
     <Modal open={open} onCancel={onClose} footer={null} title={editUser ? 'Chỉnh sửa học sinh' : 'Tạo học sinh tham gia thi'}>
-      <Tabs activeKey={activeTab} onChange={setActiveTab}>
-        <TabPane tab="Chọn học sinh đã có" key="1" disabled={!!editUser}>
-          <Select
-            showSearch
-            mode="multiple"
-            style={{ width: '100%' }}
-            placeholder="Chọn học sinh theo tên hoặc email"
-            optionFilterProp="label"
-            value={selectedUserId}
-            onChange={setSelectedUserId}
-            filterOption={(input, option) => (option?.label ?? '').toLowerCase().includes(input.toLowerCase())}
-          >
-            {users.map((u) => (
-              <Option key={u.id} value={u.id} label={`${u.id} - ${u.full_name} (${u.email})`}>
-                {u.id} - {u.full_name} ({u.email})
-              </Option>
-            ))}
-          </Select>
-          <Button type="primary" style={{ marginTop: 16 }} onClick={handleAddExisting} loading={loading} block>
-            Thêm vào ca thi
-          </Button>
-        </TabPane>
-        <TabPane tab={editUser ? 'Chỉnh sửa học sinh' : 'Tạo học sinh mới'} key="2">
-          <Form form={form} layout="vertical">
-            <Form.Item name="username" label="Tên đăng nhập" rules={[{ required: true, message: 'Nhập tên đăng nhập!' }]}>
-              <Input disabled={!!editUser?.disableUsername} />
+      <Form form={form} layout="vertical">
+        <Form.Item name="username" label="Tên đăng nhập" rules={[{ required: true, message: 'Nhập tên đăng nhập!' }]}>
+          <Input disabled={!!editUser?.disableUsername} />
+        </Form.Item>
+        <Form.Item name="full_name" label="Họ tên" rules={[{ required: true, message: 'Nhập họ tên!' }]}>
+          <Input />
+        </Form.Item>
+        <Form.Item name="email" label="Email">
+          <Input />
+        </Form.Item>
+        <Form.Item name="grade" label="Lớp" rules={[{ required: true, message: 'Nhập lớp!' }]}>
+          <Input disabled={!!editUser} />
+        </Form.Item>
+        {!editUser && (
+          <>
+            <Form.Item name="password" label="Mật khẩu" rules={[{ required: true, message: 'Nhập mật khẩu!' }]}>
+              <Input.Password />
             </Form.Item>
-            <Form.Item name="full_name" label="Họ tên" rules={[{ required: true, message: 'Nhập họ tên!' }]}>
-              <Input />
+            <Form.Item
+              name="confirmPassword"
+              label="Xác nhận mật khẩu"
+              dependencies={['password']}
+              hasFeedback
+              rules={[
+                { required: true, message: 'Vui lòng xác nhận mật khẩu!' },
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    if (!value || getFieldValue('password') === value) {
+                      return Promise.resolve();
+                    }
+                    return Promise.reject(new Error('Mật khẩu xác nhận không khớp!'));
+                  },
+                }),
+              ]}
+            >
+              <Input.Password />
             </Form.Item>
-            <Form.Item name="email" label="Email">
-              <Input />
-            </Form.Item>
-            <Form.Item name="grade" label="Lớp" rules={[{ required: true, message: 'Nhập lớp!' }]}>
-              <Input disabled={!!editUser} />
-            </Form.Item>
-            {!editUser && (
-              <>
-                <Form.Item name="password" label="Mật khẩu" rules={[{ required: true, message: 'Nhập mật khẩu!' }]}>
-                  <Input.Password />
-                </Form.Item>
-                <Form.Item
-                  name="confirmPassword"
-                  label="Xác nhận mật khẩu"
-                  dependencies={['password']}
-                  hasFeedback
-                  rules={[
-                    { required: true, message: 'Vui lòng xác nhận mật khẩu!' },
-                    ({ getFieldValue }) => ({
-                      validator(_, value) {
-                        if (!value || getFieldValue('password') === value) {
-                          return Promise.resolve();
-                        }
-                        return Promise.reject(new Error('Mật khẩu xác nhận không khớp!'));
-                      },
-                    }),
-                  ]}
-                >
-                  <Input.Password />
-                </Form.Item>
-              </>
-            )}
-            <Button type="primary" onClick={handleCreateAndAdd} loading={loading} block>
-              {editUser ? 'Lưu thay đổi' : 'Tạo và thêm vào ca thi'}
-            </Button>
-          </Form>
-        </TabPane>
-      </Tabs>
+          </>
+        )}
+        <Button type="primary" onClick={handleCreateAndAdd} loading={loading} block>
+          {editUser ? 'Lưu thay đổi' : 'Tạo và thêm vào ca thi'}
+        </Button>
+      </Form>
     </Modal>
   );
 };
