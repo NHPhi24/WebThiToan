@@ -124,7 +124,7 @@ const QLDangKyCaThi = () => {
   const [editUser, setEditUser] = useState(null);
   const [viewUser, setViewUser] = useState(null);
   const columns = [
-    { title: 'Tên người đăng ký', dataIndex: 'full_name', key: 'full_name' },
+    { title: 'Họ và tên', dataIndex: 'full_name', key: 'full_name' },
     { title: 'Email', dataIndex: 'email', key: 'email' },
     { title: 'Khối', dataIndex: 'grade', key: 'grade', align: 'center' },
     {
@@ -201,7 +201,17 @@ const QLDangKyCaThi = () => {
 
   // Lọc dữ liệu theo tên người đăng ký
   const filteredData = data.filter((row) => row.full_name?.toLowerCase().includes(search.toLowerCase()));
-
+  // Kiểm tra học sinh đã đăng ký ca thi READY khác chưa (chờ duyệt hoặc đã duyệt)
+  const hasRegisteredOtherReadySession = () => {
+    if (!currentUser || isTeacher) return false;
+    return data.some(
+      (row) =>
+        row.user_id === currentUser.id &&
+        row.session_status === 'READY' &&
+        (row.register_status === 10 || row.register_status === 20) &&
+        String(row.session_id) !== String(sessionId),
+    );
+  };
   return (
     <div>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -211,22 +221,6 @@ const QLDangKyCaThi = () => {
       <div style={{ marginBottom: 16, display: 'flex', gap: 12, alignItems: 'center' }}>
         <Button onClick={() => navigate(-1)}>Quay lại</Button>
 
-        {/* {!isTeacher && (
-          <>
-            <Button
-              type="primary"
-              onClick={() => setModalOpen({ open: true, isDangKyThi: true })}
-              disabled={isRegisteredThisSession() || (maxParticipants !== null && data.length >= maxParticipants)}
-            >
-              Đăng ký thi
-            </Button>
-            {isRegisteredThisSession() && (
-              <Button type="primary" onClick={() => setModalOpen({ open: true, isDangKyThi: false })}>
-                Hủy đăng ký
-              </Button>
-            )}
-          </>
-        )} */}
         {isTeacher && (
           <>
             <Button type="primary" onClick={() => setAddStudentModalOpen(true)}>
@@ -244,7 +238,16 @@ const QLDangKyCaThi = () => {
           style={{ width: 250 }}
         />
       </div>
-      <Table columns={columns} dataSource={filteredData.map((row, idx) => ({ ...row, key: idx }))} loading={loading} pagination={{ pageSize: 10 }} />
+      <Table
+        columns={columns}
+        dataSource={filteredData.map((row, idx) => ({ ...row, key: idx }))}
+        loading={loading}
+        pagination={{
+          showTotal: (total, range) => `${range[0]}-${range[1]}: ${total}`,
+          showSizeChanger: true,
+          pageSizeOptions: ['10', '20', '50', '100'],
+        }}
+      />
 
       {/* Modal xem chi tiết user */}
       <Modal

@@ -38,7 +38,7 @@ exports.markJoined = async (req, res) => {
 const crypto = require('crypto');
 const User = require('../entities/user');
 exports.importSessionParticipants = async (req, res) => {
-  const { session_id, users } = req.body;
+  const { session_id, users, skipInvalid } = req.body;
   if (!session_id || !Array.isArray(users) || users.length === 0) {
     return res.status(400).json({ error: 'Thiếu session_id hoặc danh sách users' });
   }
@@ -60,71 +60,114 @@ exports.importSessionParticipants = async (req, res) => {
         return res.status(400).json({ error: `Đã đủ số lượng học sinh tối đa (${maxParticipants}) cho ca thi này!` });
       }
     }
+    // 1. Chạy vòng lặp kiểm tra trước, gom kết quả hợp lệ/lỗi
     const results = [];
-    for (const user of users) {
+    const validUsers = [];
+    const validIndexes = [];
+    for (let i = 0; i < users.length; i++) {
+      const user = users[i];
       let uid = null;
       let userGrade = user.grade;
       let newAccount = null;
-      // Tìm user theo username
       let userRes = null;
+      let error = null;
       if (user.username) {
         userRes = await db.query('SELECT id, grade FROM users WHERE username = $1', [user.username]);
       }
       if (userRes && userRes.rows.length > 0) {
-        // User đã tồn tại, chỉ cần username, không cần password
         uid = userRes.rows[0].id;
         userGrade = userRes.rows[0].grade;
-        // Kiểm tra trường bắt buộc cho user đã có: chỉ cần username, full_name, email, grade
         if (!user.username || !user.full_name || !user.email || !user.grade) {
-          results.push({ username: user.username, status: 'invalid', error: 'Thiếu trường bắt buộc' });
-          continue;
+          error = 'Thiếu trường bắt buộc';
         }
       } else {
-        // User chưa tồn tại, cần đủ các trường và password
         if (!user.username || !user.password || !user.full_name || !user.email || !user.grade) {
-          results.push({ username: user.username, status: 'invalid', error: 'Thiếu trường bắt buộc' });
-          continue;
+          error = 'Thiếu trường bắt buộc';
+        } else {
+          const username = user.username;
+          const email = user.email;
+          const usernameCheck = await db.query('SELECT id FROM users WHERE username = $1', [username]);
+          if (usernameCheck.rows.length > 0) {
+            error = 'Username đã tồn tại';
+          }
+          const emailCheck = await db.query('SELECT id FROM users WHERE email = $1', [email]);
+          if (!error && emailCheck.rows.length > 0) {
+            error = 'Email đã tồn tại';
+          }
         }
-        // Kiểm tra trùng username/email
-        const username = user.username;
-        const email = user.email;
-        const usernameCheck = await db.query('SELECT id FROM users WHERE username = $1', [username]);
-        if (usernameCheck.rows.length > 0) {
-          results.push({ username, status: 'duplicate_username', error: 'Username đã tồn tại' });
-          continue;
+      }
+      // Kiểm tra học sinh đã có trong ca thi READY khác chưa
+      if (!error && userRes && userRes.rows.length > 0 && uid) {
+        const readyOtherSession = await db.query(
+          `SELECT sp.*, es.status as session_status FROM session_participants sp
+            JOIN exam_sessions es ON sp.session_id = es.id
+            WHERE sp.user_id = $1 AND es.status = 'READY' AND sp.session_id != $2 AND (sp.register_status = 10 OR sp.register_status = 20)
+          `,
+          [uid, session_id],
+        );
+        if (readyOtherSession.rows.length > 0) {
+          error = 'Học sinh đã đăng ký ca thi READY khác';
         }
-        const emailCheck = await db.query('SELECT id FROM users WHERE email = $1', [email]);
-        if (emailCheck.rows.length > 0) {
-          results.push({ username, status: 'duplicate_email', error: 'Email đã tồn tại' });
-          continue;
+      }
+      // Kiểm tra grade
+      if (!error && (!userGrade || !sessionGrade || String(userGrade) !== String(sessionGrade))) {
+        error = 'Khối của học sinh không khớp với ca thi';
+      }
+      // Kiểm tra đã đăng ký ca thi này chưa
+      if (!error && uid) {
+        const check = await db.query('SELECT * FROM session_participants WHERE session_id = $1 AND user_id = $2', [session_id, uid]);
+        if (check.rows.length > 0) {
+          error = 'Học sinh đã có trong ca thi này';
         }
+      }
+      // Nếu không có lỗi, cho vào danh sách hợp lệ
+      if (!error) {
+        validUsers.push({ user, uid, userGrade, userRes, newAccount: null, index: i });
+        validIndexes.push(i);
+        results.push(null); // placeholder, sẽ cập nhật sau
+      } else {
+        // Gán lỗi cho đúng vị trí
+        let status = 'invalid';
+        if (error === 'Username đã tồn tại') status = 'duplicate_username';
+        else if (error === 'Email đã tồn tại') status = 'duplicate_email';
+        else if (error === 'Học sinh đã đăng ký ca thi READY khác') status = 'ready_other_session';
+        else if (error === 'Khối của học sinh không khớp với ca thi') status = 'grade_mismatch';
+        else if (error === 'Học sinh đã có trong ca thi này') status = 'exists';
+        results.push({ username: user.username, status, error });
+      }
+    }
+    // Nếu có lỗi và không cho phép skip, trả về luôn kết quả lỗi, không import gì
+    if (!skipInvalid && results.some((r) => r !== null)) {
+      // Trả về kết quả lỗi, các bản ghi hợp lệ là null
+      return res.status(200).json(results.map((r, idx) => r || { username: users[idx].username, status: 'ok' }));
+    }
+    // 2. Thực hiện import các bản ghi hợp lệ
+    for (let j = 0; j < validUsers.length; j++) {
+      const { user, uid: oldUid, userGrade, userRes, index } = validUsers[j];
+      let uid = oldUid;
+      let newAccount = null;
+      if (!uid) {
         // Tạo tài khoản mới
         const password = user.password;
         const full_name = user.full_name;
-        userGrade = user.grade || sessionGrade;
         const insertUser = await db.query(
           `INSERT INTO users (username, password, full_name, email, role, grade) VALUES ($1, $2, $3, $4, 'STUDENT', $5) RETURNING id, username, full_name, email, grade`,
-          [username, password, full_name, email, userGrade],
+          [user.username, user.password, user.full_name, user.email, user.grade || sessionGrade],
         );
         uid = insertUser.rows[0].id;
-        newAccount = { username, password, full_name, email, grade: userGrade };
-      }
-      // Kiểm tra grade
-      if (!userGrade || !sessionGrade || String(userGrade) !== String(sessionGrade)) {
-        results.push({ username: user.username, status: 'grade_mismatch', newAccount });
-        continue;
-      }
-      // Kiểm tra đã đăng ký chưa
-      const check = await db.query('SELECT * FROM session_participants WHERE session_id = $1 AND user_id = $2', [session_id, uid]);
-      if (check.rows.length > 0) {
-        results.push({ username: user.username, status: 'exists', newAccount });
-        continue;
+        newAccount = {
+          username: user.username,
+          password: user.password,
+          full_name: user.full_name,
+          email: user.email,
+          grade: user.grade || sessionGrade,
+        };
       }
       const result = await db.query(
         'INSERT INTO session_participants (session_id, user_id, registered_at, register_status) VALUES ($1, $2, $3, $4) RETURNING *',
         [session_id, uid, now, 20],
       );
-      results.push({ username: user.username, status: 'registered', data: SessionParticipant.fromRow(result.rows[0]), newAccount });
+      results[index] = { username: user.username, status: 'registered', data: SessionParticipant.fromRow(result.rows[0]), newAccount };
     }
     res.status(201).json(results);
   } catch (err) {
@@ -145,7 +188,7 @@ exports.getUsersBySession = async (req, res) => {
       FROM session_participants sp
       JOIN users u ON sp.user_id = u.id
       WHERE sp.session_id = $1
-      ORDER BY sp.registered_at DESC
+      ORDER BY split_part(u.full_name, ' ', array_length(string_to_array(u.full_name, ' '), 1)) ASC, u.full_name ASC
     `,
       [session_id],
     );
@@ -180,7 +223,7 @@ exports.getAllSessionParticipants = async (req, res) => {
       FROM session_participants sp
       JOIN users u ON sp.user_id = u.id
       JOIN exam_sessions es ON sp.session_id = es.id
-      ORDER BY sp.registered_at DESC
+      ORDER BY split_part(u.full_name, ' ', array_length(string_to_array(u.full_name, ' '), 1)) ASC, u.full_name ASC
     `);
     res.json(result.rows);
   } catch (err) {

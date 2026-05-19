@@ -76,12 +76,12 @@ const ImportDKCaThi = ({ visible, onClose, sessionId, onImport }) => {
     return errors;
   };
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const file = e.target.files[0];
     setSelectedFileName(file ? file.name : '');
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       const data = new Uint8Array(evt.target.result);
       const workbook = XLSX.read(data, { type: 'array' });
       const sheetName = workbook.SheetNames[0];
@@ -96,7 +96,47 @@ const ImportDKCaThi = ({ visible, onClose, sessionId, onImport }) => {
       });
       setPreviewData(mappedData);
       setImportResult(null);
-      const errors = validateData(mappedData);
+      // FE validate trước
+      let errors = validateData(mappedData);
+      // Nếu không có lỗi FE, gọi thử BE để lấy lỗi logic (READY, trùng, ...)
+      if (errors.length === 0 && mappedData.length > 0) {
+        try {
+          // Gọi thử import với skipInvalid=true, không lưu kết quả, chỉ lấy lỗi
+          const res = await api.importSessionParticipants({ session_id: Number(sessionId), users: mappedData });
+          // Xử lý lỗi từng dòng trả về từ BE
+          const beErrors = [];
+          res.data.forEach((r, idx) => {
+            if (
+              r.status === 'ready_other_session' ||
+              r.status === 'grade_mismatch' ||
+              r.status === 'exists' ||
+              r.status === 'duplicate_username' ||
+              r.status === 'duplicate_email' ||
+              r.status === 'invalid'
+            ) {
+              beErrors.push({
+                row: idx + 1,
+                message:
+                  r.error ||
+                  (r.status === 'ready_other_session'
+                    ? 'Học sinh đã đăng ký ca thi READY khác'
+                    : r.status === 'grade_mismatch'
+                      ? 'Khối của học sinh không khớp với ca thi'
+                      : r.status === 'exists'
+                        ? 'Học sinh đã có trong ca thi này'
+                        : r.status === 'duplicate_username'
+                          ? 'Tên đăng nhập đã tồn tại'
+                          : r.status === 'duplicate_email'
+                            ? 'Email đã tồn tại'
+                            : 'Thiếu trường bắt buộc'),
+              });
+            }
+          });
+          errors = beErrors;
+        } catch (err) {
+          // Nếu lỗi hệ thống thì vẫn giữ validate FE
+        }
+      }
       setValidateErrors(errors);
       if (errors.length > 0) {
         message.error('Import thất bại: Dữ liệu có lỗi, vui lòng kiểm tra lại!');
@@ -140,11 +180,51 @@ const ImportDKCaThi = ({ visible, onClose, sessionId, onImport }) => {
         return;
       }
       const res = await api.importSessionParticipants({ session_id: Number(sessionId), users: dataToImport });
-      setImportResult(res.data);
-      message.success('Đã import học sinh hợp lệ vào ca thi!');
-      setPreviewData([]);
-      setValidateErrors([]);
-      onImport && onImport();
+      // Xử lý lỗi từng dòng trả về từ BE và tách bản ghi lỗi/thành công
+      const newErrors = [];
+      const failedRows = [];
+      const successRows = [];
+      res.data.forEach((r, idx) => {
+        if (
+          r.status === 'ready_other_session' ||
+          r.status === 'grade_mismatch' ||
+          r.status === 'exists' ||
+          r.status === 'duplicate_username' ||
+          r.status === 'duplicate_email' ||
+          r.status === 'invalid'
+        ) {
+          newErrors.push({
+            row: failedRows.length + 1,
+            message:
+              r.error ||
+              (r.status === 'ready_other_session'
+                ? 'Học sinh đã đăng ký ca thi READY khác'
+                : r.status === 'grade_mismatch'
+                  ? 'Khối của học sinh không khớp với ca thi'
+                  : r.status === 'exists'
+                    ? 'Học sinh đã có trong ca thi này'
+                    : r.status === 'duplicate_username'
+                      ? 'Tên đăng nhập đã tồn tại'
+                      : r.status === 'duplicate_email'
+                        ? 'Email đã tồn tại'
+                        : 'Thiếu trường bắt buộc'),
+          });
+          failedRows.push(previewData[idx]);
+        } else {
+          successRows.push(previewData[idx]);
+        }
+      });
+      setImportResult(res.data.filter((r) => r.newAccount));
+      setPreviewData(failedRows); // Chỉ hiển thị lại các bản ghi lỗi
+      setValidateErrors(newErrors);
+      if (newErrors.length > 0) {
+        message.error('Import thất bại: Có bản ghi lỗi, vui lòng kiểm tra lại!');
+      } else {
+        message.success('Đã import học sinh hợp lệ vào ca thi!');
+        setPreviewData([]);
+        setValidateErrors([]);
+        onImport && onImport();
+      }
     } catch (err) {
       message.error('Import thất bại: ' + (err?.response?.data?.error || err?.message || 'Lỗi không xác định'));
     } finally {
