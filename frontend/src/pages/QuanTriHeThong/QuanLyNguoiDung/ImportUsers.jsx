@@ -74,7 +74,7 @@ const ImportUsers = ({ visible, onClose, onImported }) => {
         const obj = {};
         Object.entries(USER_FIELD_MAP).forEach(([header, key]) => {
           if (key === 'role') {
-            obj[key] = (row[header] || '').toUpperCase();
+            obj[key] = (row[header] ? String(row[header]) : '').toUpperCase();
           } else if (key === 'grade') {
             obj[key] = row[header] !== undefined && row[header] !== null && row[header] !== '' ? Number(row[header]) : '';
           } else {

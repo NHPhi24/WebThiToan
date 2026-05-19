@@ -1,3 +1,4 @@
+import Filter from '../../components/Filter';
 import React, { useEffect, useState } from 'react';
 import useModal from '../../hooks/useModal';
 import { Table, Button, Tooltip, Space, Modal, message } from 'antd';
@@ -23,6 +24,7 @@ const QuestionBank = () => {
   const [showView, setShowView] = useState(false);
   const [viewData, setViewData] = useState(null);
   const [search, setSearch] = useState('');
+  const [filterValues, setFilterValues] = useState({ grade: 'ALL' });
 
   // Hook modal import
   const importModal = useModal();
@@ -50,9 +52,10 @@ const QuestionBank = () => {
   const currentUser = getCurrentUser();
   const canEditQuestion = (record) => {
     if (!currentUser) return false;
-    if (currentUser.role === 'ADMIN') return true;
-    return record.teacher_id === currentUser.id;
+    // Chỉ cho phép user là người tạo ra câu hỏi mới được sửa/xóa
+    return String(record.teacher_id) === String(currentUser.id);
   };
+  // console.log('canedit', currentUser);
 
   useEffect(() => {
     fetchQuestions();
@@ -145,7 +148,7 @@ const QuestionBank = () => {
       title: 'Đáp án đúng',
       dataIndex: 'correct_ans',
       key: 'correct_ans',
-      width: 150,
+      width: 200,
       render: (text) => <MathText>{text}</MathText>,
     },
     {
@@ -166,7 +169,7 @@ const QuestionBank = () => {
       dataIndex: 'level',
       key: 'level',
       width: 90,
-      render: (level) => <span>{level === '0' ? 'Cơ bản' : 'Nâng cao'}</span>,
+      render: (level) => <span>{String(level) === '1' ? 'Nâng cao' : 'Cơ bản'}</span>,
     },
     {
       title: 'Người tạo',
@@ -199,8 +202,17 @@ const QuestionBank = () => {
     },
   ];
 
-  // Lọc dữ liệu theo nội dung câu hỏi
-  const filteredQuestions = questions.filter((q) => q.content?.toLowerCase().includes(search.toLowerCase()));
+  // Lọc dữ liệu theo nội dung câu hỏi và theo lớp
+  const filteredQuestions = questions.filter((q) => {
+    let match = q.content?.toLowerCase().includes(search.toLowerCase());
+    if (filterValues.grade && filterValues.grade !== 'ALL') {
+      match = match && String(q.grade) === String(filterValues.grade);
+    }
+    if (filterValues.level && filterValues.level !== 'ALL') {
+      match = match && String(q.level) === String(filterValues.level);
+    }
+    return match;
+  });
 
   return (
     <div>
@@ -215,6 +227,7 @@ const QuestionBank = () => {
         <Button type="default" onClick={importModal.open}>
           Import
         </Button>
+        <Filter filterKeys={['grade', 'level']} onChange={(vals) => setFilterValues((prev) => ({ ...prev, ...vals }))} />
         <SearchInput
           placeholder="Tìm kiếm theo nội dung câu hỏi..."
           value={search}
@@ -259,7 +272,19 @@ const QuestionBank = () => {
           return results;
         }}
       />
-      <Table columns={columns} dataSource={filteredQuestions} rowKey="id" loading={loading} bordered scroll={{ x: 'max-content' }} />
+      {/* <Table columns={columns} dataSource={filteredQuestions} rowKey="id" loading={loading} bordered scroll={{ x: 'max-content' }} /> */}
+      <Table
+        columns={columns}
+        dataSource={filteredQuestions}
+        loading={loading}
+        rowKey="id"
+        pagination={{
+          showTotal: (total, range) => `${range[0]}-${range[1]}: ${total}`,
+          showSizeChanger: true,
+          pageSizeOptions: ['10', '20', '50', '100'],
+        }}
+        scroll={{ x: 'max-content' }}
+      />
       <AddQuestionModal open={showAdd} onClose={() => setShowAdd(false)} onSuccess={fetchQuestions} edit={false} />
       <AddQuestionModal
         open={showEdit}
@@ -286,7 +311,14 @@ const QuestionBank = () => {
         }}
         edit={true}
         view={true}
-        data={viewData}
+        data={
+          viewData
+            ? {
+                ...viewData,
+                level: String(viewData.level), // Đảm bảo luôn là chuỗi
+              }
+            : viewData
+        }
       />
     </div>
   );

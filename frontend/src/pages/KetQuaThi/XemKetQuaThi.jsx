@@ -1,102 +1,32 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, Table, Spin, Alert, Button } from 'antd';
-function formatTime(seconds) {
-  if (typeof seconds !== 'number' || isNaN(seconds)) return '-';
-  const h = Math.floor(seconds / 3600)
-    .toString()
-    .padStart(2, '0');
-  const m = Math.floor((seconds % 3600) / 60)
-    .toString()
-    .padStart(2, '0');
-  const s = (seconds % 60).toString().padStart(2, '0');
-  return `${h}:${m}:${s}`;
-}
+
 import MathText from '../../utils/MathText';
 import api from '../../services/api';
-
-const columns = [
-  {
-    title: 'STT',
-    dataIndex: 'index',
-    key: 'index',
-    render: (_, __, idx) => idx + 1,
-    width: 60,
-  },
-  {
-    title: 'Câu hỏi',
-    dataIndex: 'question_content',
-    key: 'question_content',
-    render: (text) => <MathText>{text}</MathText>,
-  },
-  {
-    title: 'A',
-    dataIndex: 'ans_a',
-    key: 'ans_a',
-    render: (text) => <MathText>{text}</MathText>,
-  },
-  {
-    title: 'B',
-    dataIndex: 'ans_b',
-    key: 'ans_b',
-    render: (text) => <MathText>{text}</MathText>,
-  },
-  {
-    title: 'C',
-    dataIndex: 'ans_c',
-    key: 'ans_c',
-    render: (text) => <MathText>{text}</MathText>,
-  },
-  {
-    title: 'D',
-    dataIndex: 'ans_d',
-    key: 'ans_d',
-    render: (text) => <MathText>{text}</MathText>,
-  },
-  {
-    title: 'Đáp án của bạn',
-    dataIndex: 'your_answer',
-    key: 'your_answer',
-    render: (val) => val || <span style={{ color: 'gray' }}>Chưa chọn</span>,
-  },
-  {
-    title: 'Đáp án đúng',
-    dataIndex: 'correct_answer',
-    key: 'correct_answer',
-    render: (val) => <b style={{ color: 'blue' }}>{val}</b>,
-  },
-  {
-    title: 'Kết quả',
-    dataIndex: 'is_correct',
-    key: 'is_correct',
-    render: (val, row) =>
-      row.your_answer ? (
-        val ? (
-          <span style={{ color: 'green' }}>Đúng</span>
-        ) : (
-          <span style={{ color: 'red' }}>Sai</span>
-        )
-      ) : (
-        <span style={{ color: 'gray' }}>--</span>
-      ),
-  },
-  {
-    title: 'Lời giải',
-    dataIndex: 'explanation',
-    key: 'explanation',
-    render: (val) =>
-      val && val.trim() !== '' && val !== null ? <MathText>{val}</MathText> : <span style={{ color: 'gray' }}>Chưa có lời giải</span>,
-  },
-];
 
 export default function XemKetQuaThi() {
   const { resultId } = useParams();
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [showExplanation, setShowExplanation] = useState({}); // { [question_id]: true/false }
   const [showAll, setShowAll] = useState(false);
-  const navigate = useNavigate();
+  const [examInfo, setExamInfo] = useState({ exam_code: '', session_name: '', student_name: '' });
+
+  function formatTime(seconds) {
+    if (typeof seconds !== 'number' || isNaN(seconds)) return '-';
+    const h = Math.floor(seconds / 3600)
+      .toString()
+      .padStart(2, '0');
+    const m = Math.floor((seconds % 3600) / 60)
+      .toString()
+      .padStart(2, '0');
+    const s = (seconds % 60).toString().padStart(2, '0');
+    return `${h}:${m}:${s}`;
+  }
+
   useEffect(() => {
     async function fetchResult() {
       setLoading(true);
@@ -113,7 +43,14 @@ export default function XemKetQuaThi() {
     fetchResult();
   }, [resultId]);
 
-  const [examInfo, setExamInfo] = useState({ exam_code: '', session_name: '', student_name: '' });
+  const getCurrentUser = () => {
+    try {
+      return JSON.parse(localStorage.getItem('user') || 'null');
+    } catch {
+      return null;
+    }
+  };
+  const user = getCurrentUser();
 
   useEffect(() => {
     if (data) {
@@ -158,6 +95,79 @@ export default function XemKetQuaThi() {
   const correct = data.details.filter((q) => q.is_correct).length;
   const wrong = total - correct;
   const percent = total > 0 ? Math.round((correct / total) * 100) : 0;
+  const columns = [
+    {
+      title: 'STT',
+      dataIndex: 'index',
+      key: 'index',
+      render: (_, __, idx) => idx + 1,
+      width: 60,
+    },
+    {
+      title: 'Câu hỏi',
+      dataIndex: 'question_content',
+      key: 'question_content',
+      render: (text) => <MathText>{text}</MathText>,
+    },
+    {
+      title: 'A',
+      dataIndex: 'ans_a',
+      key: 'ans_a',
+      render: (text) => <MathText>{text}</MathText>,
+    },
+    {
+      title: 'B',
+      dataIndex: 'ans_b',
+      key: 'ans_b',
+      render: (text) => <MathText>{text}</MathText>,
+    },
+    {
+      title: 'C',
+      dataIndex: 'ans_c',
+      key: 'ans_c',
+      render: (text) => <MathText>{text}</MathText>,
+    },
+    {
+      title: 'D',
+      dataIndex: 'ans_d',
+      key: 'ans_d',
+      render: (text) => <MathText>{text}</MathText>,
+    },
+    {
+      title: 'Đáp án của bạn',
+      dataIndex: 'your_answer',
+      key: 'your_answer',
+      render: (val) => val || <span style={{ color: 'gray' }}>Chưa chọn</span>,
+    },
+    {
+      title: 'Đáp án đúng',
+      dataIndex: 'correct_answer',
+      key: 'correct_answer',
+      render: (val) => <b style={{ color: 'blue' }}>{val}</b>,
+    },
+    {
+      title: 'Kết quả',
+      dataIndex: 'is_correct',
+      key: 'is_correct',
+      render: (val, row) =>
+        row.your_answer ? (
+          val ? (
+            <span style={{ color: 'green' }}>Đúng</span>
+          ) : (
+            <span style={{ color: 'red' }}>Sai</span>
+          )
+        ) : (
+          <span style={{ color: 'gray' }}>--</span>
+        ),
+    },
+    {
+      title: 'Lời giải',
+      dataIndex: 'explanation',
+      key: 'explanation',
+      render: (val) =>
+        val && val.trim() !== '' && val !== null ? <MathText>{val}</MathText> : <span style={{ color: 'gray' }}>Chưa có lời giải</span>,
+    },
+  ];
 
   return (
     <>
@@ -189,9 +199,41 @@ export default function XemKetQuaThi() {
                   <span style={{ color: 'green' }}>{percent}% đúng</span>, <span style={{ color: 'red' }}>{wrong} sai</span>)
                 </td>
               </tr>
+              {user.role !== 'STUDENT' && (
+                <tr>
+                  <td style={{ fontWeight: 600 }}>Số lần vi phạm</td>
+                  <td colSpan={3}>
+                    <span style={{ color: data.violation_count > 0 ? 'red' : 'green', fontWeight: 600 }}>{data.violation_count || 0}</span>
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
+        {/* Bảng log vi phạm */}
+        {user.role !== 'STUDENT' && Array.isArray(data.violation_logs) && data.violation_logs.length > 0 && (
+          <div style={{ marginBottom: 24 }}>
+            <b style={{ color: 'red' }}>Lịch sử vi phạm:</b>
+            <table style={{ width: '100%', marginTop: 8, background: '#fff8f6', border: '1px solid #ffccc7', borderRadius: 6 }}>
+              <thead>
+                <tr style={{ background: '#fff1f0' }}>
+                  <th style={{ padding: 6, borderRight: '1px solid #ffccc7' }}>#</th>
+                  <th style={{ padding: 6, borderRight: '1px solid #ffccc7' }}>Thời điểm</th>
+                  <th style={{ padding: 6 }}>Nội dung</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.violation_logs.map((log, idx) => (
+                  <tr key={idx}>
+                    <td style={{ padding: 6, textAlign: 'center', borderRight: '1px solid #ffccc7' }}>{idx + 1}</td>
+                    <td style={{ padding: 6, borderRight: '1px solid #ffccc7' }}>{new Date(log.time).toLocaleString()}</td>
+                    <td style={{ padding: 6 }}>{log.note || log.type}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
         <div style={{ marginBottom: 16 }}>
           <button
             onClick={handleToggleAll}

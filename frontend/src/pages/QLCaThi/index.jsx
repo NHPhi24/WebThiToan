@@ -1,12 +1,12 @@
+import Filter from '../../components/Filter';
+import apiService from '../../services/api';
+import dayjs from 'dayjs';
+import { EXAM_SESSION_STATUS } from '../../constants/constant';
 import React, { useEffect, useState } from 'react';
 import { Table, message, Modal, Form, Input, DatePicker, InputNumber, Select, Button, Tooltip, Popconfirm } from 'antd';
 import SearchInput from '../../components/SearchInput';
 import useTeacherFullName from '../../hooks/useTeacherFullName';
-// Component con để dùng hook đúng chuẩn
-const TeacherName = ({ teacherId }) => {
-  const { fullName, loading } = useTeacherFullName(teacherId);
-  return loading ? '...' : fullName;
-};
+
 import { Edit, Trash, Eye, Search } from 'lucide-react';
 import AddExamSessionModal from './AddExamSessionModal';
 import api from '../../services/api';
@@ -21,9 +21,11 @@ const getCurrentUser = () => {
     return null;
   }
 };
-import apiService from '../../services/api';
-import dayjs from 'dayjs';
-import { EXAM_SESSION_STATUS } from '../../constants/constant';
+// Component con để dùng hook đúng chuẩn
+const TeacherName = ({ teacherId }) => {
+  const { fullName, loading } = useTeacherFullName(teacherId);
+  return loading ? '...' : fullName;
+};
 
 // statusColors moved to ExamSessionDetail.jsx
 const statusOptions = EXAM_SESSION_STATUS;
@@ -45,6 +47,7 @@ const QLCaThi = ({ user, isLoggedIn }) => {
   const [examOptions, setExamOptions] = useState([]);
   const [search, setSearch] = useState('');
   const [registeredCounts, setRegisteredCounts] = useState({});
+  const [filterValues, setFilterValues] = useState({ grade: 'ALL' });
 
   useEffect(() => {
     api.getAllExams().then((res) => {
@@ -199,8 +202,14 @@ const QLCaThi = ({ user, isLoggedIn }) => {
     fetchRegistered();
   }, []);
 
-  // Lọc dữ liệu theo tên ca thi
-  const filteredData = data.filter((row) => row.session_name?.toLowerCase().includes(search.toLowerCase()));
+  // Lọc dữ liệu theo filter động và tên ca thi
+  const filteredData = data.filter((row) => {
+    let match = row.session_name?.toLowerCase().includes(search.toLowerCase());
+    if (filterValues.grade && filterValues.grade !== 'ALL') {
+      match = match && String(row.grade) === String(filterValues.grade);
+    }
+    return match;
+  });
 
   // Fetch số lượng học sinh đã đăng ký cho từng ca thi
   useEffect(() => {
@@ -339,6 +348,7 @@ const QLCaThi = ({ user, isLoggedIn }) => {
             Thêm ca thi
           </Button>
         )}
+        <Filter filterKeys={['grade']} onChange={(vals) => setFilterValues((prev) => ({ ...prev, ...vals }))} />
         <SearchInput placeholder="Tìm kiếm theo tên ca thi..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: 250 }} />
       </div>
       {/* Hiển thị danh sách ca thi đã đăng ký của học sinh */}
@@ -383,7 +393,17 @@ const QLCaThi = ({ user, isLoggedIn }) => {
         </div>
       )}
 
-      <Table columns={columns} dataSource={filteredData} loading={loading} rowKey="id" pagination={{ pageSize: 10 }} />
+      <Table
+        columns={columns}
+        dataSource={filteredData}
+        loading={loading}
+        rowKey="id"
+        pagination={{
+          showTotal: (total, range) => `${range[0]}-${range[1]}: ${total}`,
+          showSizeChanger: true,
+          pageSizeOptions: ['10', '20', '50', '100'],
+        }}
+      />
       {modalOpen && modalMode !== 'view' && (
         <AddExamSessionModal
           open={modalOpen}

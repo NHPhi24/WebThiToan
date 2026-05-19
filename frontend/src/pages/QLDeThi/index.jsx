@@ -1,18 +1,4 @@
-// Lấy user hiện tại từ localStorage
-const getCurrentUser = () => {
-  try {
-    return JSON.parse(localStorage.getItem('user') || 'null');
-  } catch {
-    return null;
-  }
-};
-const currentUser = getCurrentUser();
-const canEditExam = (record) => {
-  if (!currentUser) return false;
-  if (currentUser.role === 'ADMIN') return true;
-  return String(record.teacher_id) === String(currentUser.id);
-  // return record.teacher_id === currentUser.id;
-};
+import Filter from '../../components/Filter';
 import React, { useEffect, useState } from 'react';
 import { Table, message, Modal, Button } from 'antd';
 import SearchInput from '../../components/SearchInput';
@@ -36,6 +22,7 @@ const QLDeThi = () => {
   const [addModalLoading, setAddModalLoading] = useState(false);
   const [structureModalOpen, setStructureModalOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [filterValues, setFilterValues] = useState({ grade: 'ALL' });
 
   const fetchData = async () => {
     setLoading(true);
@@ -47,6 +34,21 @@ const QLDeThi = () => {
     } finally {
       setLoading(false);
     }
+  };
+  const getCurrentUser = () => {
+    try {
+      return JSON.parse(localStorage.getItem('user') || 'null');
+    } catch {
+      return null;
+    }
+  };
+  const currentUser = getCurrentUser();
+  // Hàm so sánh id an toàn cho mọi kiểu dữ liệu
+  const isSameId = (a, b) => String(a) === String(b);
+  const canEditExam = (record) => {
+    if (!currentUser) return false;
+    if (currentUser.role === 'ADMIN') return true;
+    return isSameId(record.teacher_id, currentUser.id);
   };
   const [templates, setTemplates] = useState([]);
   useEffect(() => {
@@ -95,11 +97,15 @@ const QLDeThi = () => {
     }
   };
 
-  // Lọc dữ liệu theo mã đề hoặc tên template
+  // Lọc dữ liệu theo mã đề, tên template và theo lớp
   const filteredData = data.filter((row) => {
     const q = search.toLowerCase();
     const template = templates.find((t) => t.id === row.template_id);
-    return row.exam_code?.toLowerCase().includes(q) || (template?.template_name?.toLowerCase().includes(q) ?? false);
+    let match = row.exam_code?.toLowerCase().includes(q) || (template?.template_name?.toLowerCase().includes(q) ?? false);
+    if (filterValues.grade && filterValues.grade !== 'ALL') {
+      match = match && String(row.grade) === String(filterValues.grade);
+    }
+    return match;
   });
 
   const columns = [
@@ -153,6 +159,7 @@ const QLDeThi = () => {
         <Button type="primary" onClick={handleAddNew} icon={<PlusOutlined />}>
           Thêm đề thi
         </Button>
+        <Filter filterKeys={['grade']} onChange={(vals) => setFilterValues((prev) => ({ ...prev, ...vals }))} />
         <SearchInput
           placeholder="Tìm kiếm mã đề hoặc tên cấu trúc..."
           value={search}
@@ -160,7 +167,17 @@ const QLDeThi = () => {
           style={{ width: 300 }}
         />
       </div>
-      <Table columns={columns} dataSource={filteredData} loading={loading} rowKey="id" pagination={{ pageSize: 10 }} />
+      <Table
+        columns={columns}
+        dataSource={filteredData}
+        loading={loading}
+        rowKey="id"
+        pagination={{
+          showTotal: (total, range) => `${range[0]}-${range[1]}: ${total}`,
+          showSizeChanger: true,
+          pageSizeOptions: ['10', '20', '50', '100'],
+        }}
+      />
       <Modal
         open={modalOpen}
         onCancel={() => setModalOpen(false)}

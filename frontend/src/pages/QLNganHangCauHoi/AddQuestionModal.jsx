@@ -29,16 +29,7 @@ const AddQuestionModal = ({ open, onClose, onSuccess, edit = false, view = false
         ans_d: data.ans_d,
         correct_ans: data.correct_ans,
         explanation: data.explanation,
-        level:
-          typeof data.level === 'number'
-            ? data.level === 0 || data.level === 1
-              ? data.level
-              : 0
-            : data.level === 'basic'
-              ? 0
-              : data.level === 'advanced'
-                ? 1
-                : 0,
+        level: String(data.level) === '1' ? 1 : 0,
         grade: data.grade || 10,
       });
       setContentPreview(data.content || '');

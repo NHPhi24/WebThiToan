@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Button, message, Table, Alert, Input } from 'antd';
+import { Modal, Button, message, Table, Alert, Input, Card } from 'antd';
 import { DownloadOutlined } from '@ant-design/icons';
 import * as XLSX from 'xlsx';
 import stringSimilarity from 'string-similarity';
 import useNotify from '../../hooks/useNotify';
 import api from '../../services/api';
+import MathText from '../../utils/MathText';
 // Header tiếng Việt cho file mẫu (có ID giáo viên)
 const headers = [
   // 'ID giáo viên', // teacher_id
@@ -42,7 +43,12 @@ const ImportQuestionModal = ({ visible, onClose, onImport }) => {
   const fileInputRef = React.useRef();
   const [fileInputKey, setFileInputKey] = useState(Date.now());
   const [selectedFileName, setSelectedFileName] = useState('');
-
+  // Import nhiều câu hỏi, xác nhận nếu có lỗi, chỉ gửi bản ghi hợp lệ
+  const [importResult, setImportResult] = useState(null);
+  const [mathStructList, setMathStructList] = useState([]);
+  const [showMathStructModal, setShowMathStructModal] = useState(false);
+  // Gộp modal lỗi và warning mathStruct thành một modal xác nhận duy nhất
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   // Fetch all questions from DB when modal is opened
   useEffect(() => {
     if (visible) {
@@ -58,6 +64,20 @@ const ImportQuestionModal = ({ visible, onClose, onImport }) => {
     XLSX.utils.book_append_sheet(wb, ws, 'Mẫu Câu hỏi');
     XLSX.writeFile(wb, 'Cấu_trúc_mẫu_câu_hỏi.xlsx');
   };
+  useEffect(() => {
+    if (previewData.length > 0) {
+      const errors = validateData(previewData);
+      setValidateErrors(errors);
+      // Debug log
+      console.log('validateErrors:', errors);
+      console.log('mathStructList:', mathStructList);
+      if (errors.length > 0 || mathStructList.length > 0) {
+        setShowConfirmModal(true);
+      }
+    } else {
+      setValidateErrors([]);
+    }
+  }, [allQuestions, previewData]);
 
   // Hàm tự động format các trường LaTeX: chuyển \( ... \) thành $...$
   const autoFormatLatex = (str) => {
@@ -176,7 +196,6 @@ const ImportQuestionModal = ({ visible, onClose, onImport }) => {
         const mappedRow = {};
         Object.keys(fieldMap).forEach((vi) => {
           let val = row[vi];
-          // Áp dụng autoFormatLatex cho tất cả các trường toán học
           if (['Nội dung câu hỏi', 'Đáp án A', 'Đáp án B', 'Đáp án C', 'Đáp án D', 'Giải thích', 'Đáp án đúng'].includes(vi)) {
             val = autoFormatLatex(val);
           }
@@ -186,24 +205,13 @@ const ImportQuestionModal = ({ visible, onClose, onImport }) => {
         return mappedRow;
       });
       setPreviewData(mappedData);
-      // Check duplicate with DB
-      const errors = validateData(mappedData);
-      setValidateErrors(errors);
-      if (errors.length > 0) {
-        // Nếu có lỗi trùng hoặc lỗi khác, báo lỗi ngay
-        notify.error('Import thất bại: Dữ liệu có lỗi hoặc bị trùng với ngân hàng, vui lòng kiểm tra lại!');
-      }
+      // Không validate ngay, sẽ validate khi allQuestions đã load xong
     };
     reader.readAsArrayBuffer(file);
     setFileInputKey(Date.now());
+    // Validate lại dữ liệu và show modal xác nhận khi có lỗi hoặc mathStructList
   };
 
-  // Import nhiều câu hỏi, xác nhận nếu có lỗi, chỉ gửi bản ghi hợp lệ
-  const [importResult, setImportResult] = useState(null);
-  const [mathStructList, setMathStructList] = useState([]);
-  const [showMathStructModal, setShowMathStructModal] = useState(false);
-  // Gộp modal lỗi và warning mathStruct thành một modal xác nhận duy nhất
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const handleImport = async () => {
     // Nếu có lỗi hoặc mathStruct thì show modal xác nhận gộp
     if (validateErrors.length > 0 || mathStructList.length > 0) {
@@ -231,18 +239,24 @@ const ImportQuestionModal = ({ visible, onClose, onImport }) => {
     setImporting(true);
     try {
       let dataToImport = previewData;
-      if (skipInvalid) {
-        const invalidRows = validateErrors.map((e) => e.row);
-        dataToImport = previewData.filter((_, idx) => !invalidRows.includes(idx + 1));
-      }
-      if (!importMathStruct && mathStructList.length > 0) {
-        // Nếu chưa xác nhận import mathStruct thì chỉ gửi bản ghi không thuộc mathStruct
-        const mathStructContents = mathStructList.map((m) => m.row.content);
-        dataToImport = dataToImport.filter((row) => !mathStructContents.includes(row.content));
-      }
+      // Lấy các dòng lỗi (thiếu trường, sai kiểu, trùng hoàn toàn)
+      const invalidRows = validateErrors.map((e) => e.row);
+      // Lấy content các bản ghi mathStruct
+      const mathStructContents = mathStructList.map((m) => m.row.content);
       if (importMathStruct && mathStructList.length > 0) {
-        // Chỉ gửi các bản ghi mathStruct
-        dataToImport = mathStructList.map((m) => m.row);
+        // Import cả các bản ghi hợp lệ (không lỗi, không trùng hoàn toàn) và các bản ghi mathStruct
+        dataToImport = previewData.filter((row, idx) => {
+          // Loại bỏ các dòng lỗi (validateErrors) và các dòng trùng hoàn toàn (đã bị validateErrors đánh dấu)
+          if (invalidRows.includes(idx + 1)) return false;
+          // Nếu là mathStruct hoặc là hợp lệ (không thuộc mathStruct, không lỗi)
+          return true;
+        });
+      } else if (skipInvalid) {
+        // Chỉ import các bản ghi không lỗi
+        dataToImport = previewData.filter((_, idx) => !invalidRows.includes(idx + 1));
+      } else if (!importMathStruct && mathStructList.length > 0) {
+        // Nếu chưa xác nhận import mathStruct thì chỉ gửi bản ghi không thuộc mathStruct
+        dataToImport = previewData.filter((row) => !mathStructContents.includes(row.content));
       }
       if (dataToImport.length === 0) {
         notify.error('Không có bản ghi hợp lệ nào để import!');
@@ -251,14 +265,47 @@ const ImportQuestionModal = ({ visible, onClose, onImport }) => {
       }
       if (onImport) {
         const result = await onImport(dataToImport);
-        setImportResult(result);
+        // Nếu kết quả trả về có inserted/skipped/mathStruct thì hiển thị chi tiết
+        if (result && (result.inserted || result.skipped || result.mathStruct)) {
+          // Gộp lại thành 1 mảng kết quả để hiển thị
+          const importDetails = [];
+          if (Array.isArray(result.inserted)) {
+            result.inserted.forEach((q) => {
+              importDetails.push({
+                content: q.content,
+                status: 'created',
+                info: 'Thành công',
+              });
+            });
+          }
+          if (Array.isArray(result.skipped)) {
+            result.skipped.forEach((q) => {
+              importDetails.push({
+                content: q.content,
+                status: 'skipped',
+                info: q.reason || 'Bị bỏ qua',
+              });
+            });
+          }
+          if (Array.isArray(result.mathStruct)) {
+            result.mathStruct.forEach((q) => {
+              importDetails.push({
+                content: q.row?.content,
+                status: 'mathStruct',
+                info: q.warning || 'Cảnh báo cấu trúc toán học',
+              });
+            });
+          }
+          setImportResult(importDetails);
+        } else {
+          setImportResult(result);
+        }
       }
       setPreviewData([]);
       setValidateErrors([]);
       setMathStructList([]);
       setShowMathStructModal(false);
-      notify.success('Đã gửi dữ liệu import!');
-      onClose();
+      // Không notify và không đóng modal, chỉ hiển thị chi tiết trong modal
     } catch (err) {
       notify.error('Import thất bại: ' + (err?.message || 'Lỗi không xác định'));
     } finally {
@@ -268,13 +315,18 @@ const ImportQuestionModal = ({ visible, onClose, onImport }) => {
 
   // Cột cho bảng preview
   const columns = [
-    { title: 'Nội dung', dataIndex: 'content', key: 'content' },
-    { title: 'A', dataIndex: 'ans_a', key: 'ans_a' },
-    { title: 'B', dataIndex: 'ans_b', key: 'ans_b' },
-    { title: 'C', dataIndex: 'ans_c', key: 'ans_c' },
-    { title: 'D', dataIndex: 'ans_d', key: 'ans_d' },
-    { title: 'Đúng', dataIndex: 'correct_ans', key: 'correct_ans' },
-    { title: 'Giải thích', dataIndex: 'explanation', key: 'explanation' },
+    {
+      title: 'Nội dung',
+      dataIndex: 'content',
+      key: 'content',
+      render: (text) => text,
+    },
+    { title: 'A', dataIndex: 'ans_a', key: 'ans_a', render: (text) => text },
+    { title: 'B', dataIndex: 'ans_b', key: 'ans_b', render: (text) => text },
+    { title: 'C', dataIndex: 'ans_c', key: 'ans_c', render: (text) => text },
+    { title: 'D', dataIndex: 'ans_d', key: 'ans_d', render: (text) => text },
+    { title: 'Đúng', dataIndex: 'correct_ans', key: 'correct_ans', render: (text) => text },
+    { title: 'Giải thích', dataIndex: 'explanation', key: 'explanation', render: (text) => text },
     { title: 'Độ khó', dataIndex: 'level', key: 'level' },
     { title: 'Khối lớp', dataIndex: 'grade', key: 'grade' },
   ];
@@ -324,7 +376,19 @@ const ImportQuestionModal = ({ visible, onClose, onImport }) => {
         />
         <span style={{ minWidth: 120, marginTop: 16, marginBottom: 16 }}>{selectedFileName || 'Chưa chọn file'}</span>
       </div>
-      {/* Không show alert lỗi riêng, sẽ show trong modal xác nhận gộp */}
+      {/* Hiển thị lỗi validate chi tiết ngay dưới input file, giống ImportUsers */}
+      {validateErrors.length > 0 && (
+        <Card style={{ marginBottom: 16, borderColor: '#ff4d4f', background: '#fff1f0' }}>
+          <div style={{ color: '#ff4d4f', fontWeight: 'bold' }}>Có lỗi trong dữ liệu, vui lòng kiểm tra lại!</div>
+          <ul style={{ margin: 0, color: '#ff4d4f', fontWeight: 'bold' }}>
+            {validateErrors.map((err, idx) => (
+              <li key={idx}>
+                Dòng {err.row}: {err.message}
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
       {previewData.length > 0 && (
         <Table
           dataSource={previewData.map((row, idx) => ({ ...row, key: idx }))}
@@ -379,7 +443,7 @@ const ImportQuestionModal = ({ visible, onClose, onImport }) => {
             description={
               <ul style={{ margin: 0 }}>
                 {mathStructList.map((m, idx) => (
-                  <li key={idx}>{m.row.content?.slice(0, 80)}</li>
+                  <li key={idx}>{m.row.content}</li>
                 ))}
               </ul>
             }
@@ -390,20 +454,44 @@ const ImportQuestionModal = ({ visible, onClose, onImport }) => {
       {/* Hiển thị kết quả import từng dòng */}
       {importResult && previewData.length === 0 && (
         <div style={{ marginTop: 16 }}>
-          <Alert
-            type="info"
-            message="Kết quả import từng dòng"
-            description={
+          {/* Hiển thị danh sách lỗi chi tiết, không dùng Alert/Notify */}
+          {importResult.some((r) => r.status === 'skipped') && (
+            <div style={{ marginBottom: 16 }}>
+              <div>
+                <b>Có lỗi trong dữ liệu, vui lòng kiểm tra lại!</b>
+              </div>
               <ul style={{ margin: 0 }}>
-                {importResult.map((r, idx) => (
-                  <li key={idx} style={{ color: r.status === 'created' ? 'green' : 'red' }}>
-                    {r.content?.slice(0, 40) || 'Câu hỏi'}: {r.status === 'created' ? 'Thành công' : r.error || r.status}
-                  </li>
-                ))}
+                {importResult
+                  .filter((r) => r.status === 'skipped')
+                  .map((r, idx) => (
+                    <li key={idx}>
+                      {r.content?.slice(0, 60) || 'Câu hỏi'}: {r.info || 'Bị bỏ qua'}
+                    </li>
+                  ))}
               </ul>
-            }
-            showIcon
-          />
+            </div>
+          )}
+          {importResult.some((r) => r.status === 'mathStruct') && (
+            <div style={{ marginBottom: 16 }}>
+              <div>
+                <b>Các câu hỏi sau có cấu trúc toán học giống với câu hỏi khác, chỉ khác số/biến/năm:</b>
+              </div>
+              <ul style={{ margin: 0 }}>
+                {importResult
+                  .filter((r) => r.status === 'mathStruct')
+                  .map((r, idx) => (
+                    <li key={idx}>
+                      {r.content?.slice(0, 60) || 'Câu hỏi'}: {r.info || 'Cảnh báo cấu trúc toán học'}
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          )}
+          {importResult.every((r) => r.status === 'created') && (
+            <div style={{ marginBottom: 16 }}>
+              <b>Import thành công tất cả các câu hỏi!</b>
+            </div>
+          )}
         </div>
       )}
     </Modal>

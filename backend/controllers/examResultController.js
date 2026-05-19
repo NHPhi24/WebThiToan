@@ -101,6 +101,17 @@ const getExamResultDetail = async (req, res) => {
         explanation: q.explanation,
       };
     });
+    // Đếm số lần vi phạm
+    let violation_count = 0;
+    let violationLogs = result.violation_logs || [];
+    if (typeof violationLogs === 'string') {
+      try {
+        violationLogs = JSON.parse(violationLogs);
+      } catch {
+        violationLogs = [];
+      }
+    }
+    violation_count = Array.isArray(violationLogs) ? violationLogs.length : 0;
     res.json({
       id: result.id,
       student_id: result.student_id,
@@ -109,6 +120,8 @@ const getExamResultDetail = async (req, res) => {
       score: result.score,
       duration_seconds: result.duration_seconds,
       details,
+      violation_count,
+      violation_logs: violationLogs,
     });
   } catch (error) {
     console.error('getExamResultDetail error:', error);

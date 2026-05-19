@@ -134,7 +134,7 @@ const KetQuaThi = () => {
   ];
 
   // Lọc kết quả theo ca thi đã chọn (chỉ giáo viên/admin mới lọc)
-  const sessionOptions = sessions.map((s) => ({ label: s.session_name, value: s.id }));
+  const sessionOptions = sessions.filter((s) => s.status === 'FINISHED').map((s) => ({ label: s.session_name, value: s.id }));
   let filteredResults = data;
   let selectedSessionObj = null;
   const role = user?.role?.toLowerCase();
@@ -238,7 +238,15 @@ const KetQuaThi = () => {
               columns={columns}
               dataSource={filteredResults}
               rowKey={(r) => r.id}
-              pagination={filteredResults.length > 10 ? { pageSize: 10 } : false}
+              pagination={
+                filteredResults.length > 10
+                  ? {
+                      showTotal: (total, range) => `${range[0]}-${range[1]}: ${total}`,
+                      showSizeChanger: true,
+                      pageSizeOptions: ['10', '20', '50', '100'],
+                    }
+                  : false
+              }
               locale={{ emptyText: 'Bạn chưa có kết quả thi nào.' }}
             />
           </>

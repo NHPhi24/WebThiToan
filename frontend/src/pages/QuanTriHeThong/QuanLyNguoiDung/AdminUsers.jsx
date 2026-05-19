@@ -6,6 +6,7 @@ import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import ActionIcons from '../../../components/ActionIcons';
 import api from '../../../services/api';
 import { ROLES } from '../../../constants/constant.jsx';
+import Filter from '../../../components/Filter';
 import ImportUsers from './ImportUsers';
 
 const AdminUsers = () => {
@@ -18,6 +19,7 @@ const AdminUsers = () => {
   const [viewUser, setViewUser] = useState(null);
   const [importModalVisible, setImportModalVisible] = useState(false);
   const [search, setSearch] = useState('');
+  const [filterValues, setFilterValues] = useState({ role: 'ALL' });
 
   // Lấy user hiện tại từ localStorage
   const getCurrentUser = () => {
@@ -169,10 +171,20 @@ const AdminUsers = () => {
     },
   ];
 
-  // Lọc dữ liệu theo tên đăng nhập, họ tên hoặc email
+  // Lọc dữ liệu theo filter động và theo tên đăng nhập, họ tên hoặc email
   const filteredUsers = users.filter((user) => {
     const q = search.toLowerCase();
-    return user.username?.toLowerCase().includes(q) || user.full_name?.toLowerCase().includes(q) || user.email?.toLowerCase().includes(q);
+    const matchSearch =
+      user.username?.toLowerCase().includes(q) || user.full_name?.toLowerCase().includes(q) || user.email?.toLowerCase().includes(q);
+    let match = matchSearch;
+    if (filterValues.role && filterValues.role !== 'ALL') {
+      match = match && user.role === filterValues.role;
+    }
+    if (filterValues.grade && filterValues.grade !== 'ALL') {
+      match = match && user.grade === filterValues.grade;
+    }
+    // Có thể mở rộng các filter khác ở đây
+    return match;
   });
 
   return (
@@ -186,6 +198,11 @@ const AdminUsers = () => {
           {isGiaoVien ? 'Thêm học sinh' : 'Thêm người dùng'}
         </Button>
         <Button onClick={() => setImportModalVisible(true)}>Import</Button>
+        {getCurrentUser()?.role === 'ADMIN' && (
+          <Filter filterKeys={['role']} onChange={(vals) => setFilterValues((prev) => ({ ...prev, ...vals }))} />
+        )}
+        <Filter filterKeys={['grade']} onChange={(vals) => setFilterValues((prev) => ({ ...prev, ...vals }))} />
+
         <SearchInput
           placeholder="Tìm kiếm tên, email hoặc tên đăng nhập..."
           value={search}
@@ -195,7 +212,18 @@ const AdminUsers = () => {
       </div>
 
       <Spin spinning={loading}>
-        <Table rowKey="id" loading={loading} dataSource={filteredUsers} columns={columns} pagination={{ pageSize: 8 }} />
+        <Table
+          rowKey="id"
+          loading={loading}
+          dataSource={filteredUsers}
+          columns={columns}
+          pagination={{
+            showTotal: (total, range) => `${range[0]}-${range[1]}: ${total}`,
+            showSizeChanger: true,
+            pageSizeOptions: ['10', '20', '50', '100'],
+            // Không đặt pageSize để Table tự động cập nhật theo lựa chọn
+          }}
+        />
       </Spin>
 
       <Modal

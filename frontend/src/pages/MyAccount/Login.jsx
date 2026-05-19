@@ -10,8 +10,8 @@ const Login = ({ setIsLoggedIn, setUser }) => {
 
   // Nếu đã đăng nhập thì chuyển về trang chủ
   useEffect(() => {
-    const user = localStorage.getItem('user');
-    if (user) {
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    if (user && user.token) {
       navigate('/');
     }
   }, [navigate]);

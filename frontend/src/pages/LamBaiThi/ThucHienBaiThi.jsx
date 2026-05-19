@@ -22,7 +22,6 @@ function getRandomExamId(examIds) {
 }
 
 const ThucHienBaiThi = ({ setSidebarCollapsed }) => {
-  // Ẩn header khi vào trang làm bài
   useEffect(() => {
     // Ẩn header nếu có
     const header = document.querySelector('.app-header, header, #header');
@@ -54,9 +53,27 @@ const ThucHienBaiThi = ({ setSidebarCollapsed }) => {
   const [showUnlockBtn, setShowUnlockBtn] = useState(false);
   const [viPhamCount, setViPhamCount] = useState(0); // Đếm số lần vi phạm
   const [lockDuration, setLockDuration] = useState(120); // Thời gian khoá lấy từ ca thi
+  const [examId, setExamId] = useState(null);
+  const [questions, setQuestions] = useState([]);
+  const [examCode, setExamCode] = useState('');
+  const [initDone, setInitDone] = useState(false);
+  const [current, setCurrent] = useState(0);
+  // Lưu các câu đã xem nhưng chưa trả lời
+  const [viewedQuestions, setViewedQuestions] = useState([]);
+  const [answers, setAnswers] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [autoSubmitted, setAutoSubmitted] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(3600); // 60 phút mặc định
+  const [totalTime, setTotalTime] = useState(3600);
+  const [examResultId, setExamResultId] = useState(null); // Lưu id bài thi
 
-  // Khi vi phạm (chuyển tab/cửa sổ), khoá bài và bắt đầu đếm ngược, đồng thời ghi log vi phạm
+  // Guard biến để debounce log vi phạm
+  const [isViolationPending, setIsViolationPending] = useState(false);
   const handleViPham = () => {
+    if (isViolationPending) return;
+    setIsViolationPending(true);
+    setTimeout(() => setIsViolationPending(false), 1000); // 1s debounce
     // Ghi log vi phạm lên BE
     if (user?.id && sessionId) {
       api
@@ -93,20 +110,6 @@ const ThucHienBaiThi = ({ setSidebarCollapsed }) => {
     const timer = setTimeout(() => setLockCountdown((t) => t - 1), 1000);
     return () => clearTimeout(timer);
   }, [locked, lockCountdown]);
-  const [examId, setExamId] = useState(null);
-  const [questions, setQuestions] = useState([]);
-  const [examCode, setExamCode] = useState('');
-  const [initDone, setInitDone] = useState(false);
-  const [current, setCurrent] = useState(0);
-  // Lưu các câu đã xem nhưng chưa trả lời
-  const [viewedQuestions, setViewedQuestions] = useState([]);
-  const [answers, setAnswers] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [autoSubmitted, setAutoSubmitted] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(3600); // 60 phút mặc định
-  const [totalTime, setTotalTime] = useState(3600);
-  const [examResultId, setExamResultId] = useState(null); // Lưu id bài thi
 
   // Khi vào trang, gọi BE random mã đề và lấy câu hỏi
   useEffect(() => {
@@ -193,6 +196,13 @@ const ThucHienBaiThi = ({ setSidebarCollapsed }) => {
     setTimeLeft(timeLeftSec);
     setTotalTime(duration / 1000);
   }, [session]);
+
+  // Cảnh báo khi còn 5 phút
+  useEffect(() => {
+    if (timeLeft === 300) {
+      message.warning('Chỉ còn 5 phút làm bài! Hãy kiểm tra và nộp bài đúng giờ.', 5);
+    }
+  }, [timeLeft]);
   // Nộp tự động khi hết giờ
   useEffect(() => {
     if (timeLeft <= 0) {
@@ -243,6 +253,7 @@ const ThucHienBaiThi = ({ setSidebarCollapsed }) => {
       else if (key === 'D') answerText = q.ans_d;
       fullAnswers[q.id] = answerText || '';
     });
+    // console.log('answers_log gửi lên BE (handleAnswer):', fullAnswers);
     try {
       await api.createExamResult({
         student_id: user?.id,
@@ -293,7 +304,7 @@ const ThucHienBaiThi = ({ setSidebarCollapsed }) => {
     });
     try {
       const duration_seconds = totalTime - timeLeft;
-      console.log('answers_log gửi lên BE (doSubmit):', fullAnswers);
+      // console.log('answers_log gửi lên BE (doSubmit):', fullAnswers);
       await api.createExamResult({
         student_id: user?.id,
         exam_id: examId,
@@ -304,7 +315,7 @@ const ThucHienBaiThi = ({ setSidebarCollapsed }) => {
         duration_seconds,
       });
       if (isViPham) {
-        message.error('Bạn đã vi phạm 3 lần. Bài thi đã bị nộp tự động!');
+        message.success('Bạn đã vi phạm 3 lần. Bài thi đã bị nộp tự động!');
       } else {
         message.success('Nộp bài thành công!');
       }
@@ -376,6 +387,9 @@ const ThucHienBaiThi = ({ setSidebarCollapsed }) => {
       >
         {/* Main content */}
         <div style={{ flex: 1, minWidth: 0 }}>
+          <div>
+            Thời gian còn lại: <b style={{ color: timeLeft <= 300 ? '#ff4d4f' : undefined }}>{formatTime(timeLeft)}</b>
+          </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <h2>{session.session_name}</h2>
             <ReloadOutlined onClick={reloadExam} title="Tải lại bài thi" />
@@ -384,9 +398,9 @@ const ThucHienBaiThi = ({ setSidebarCollapsed }) => {
             <div>
               Mã đề: <b>{examCode}</b>
             </div>
-            <div>
+            {/* <div>
               Thời gian còn lại: <b>{formatTime(timeLeft)}</b>
-            </div>
+            </div> */}
           </div>
           <Progress percent={((current + 1) / questions.length) * 100} showInfo={false} />
           <Card style={{ marginTop: 16 }}>
@@ -419,15 +433,13 @@ const ThucHienBaiThi = ({ setSidebarCollapsed }) => {
             <Button onClick={() => handleSetCurrent(Math.max(0, current - 1))} disabled={current === 0}>
               Câu trước
             </Button>
-            {current === questions.length - 1 ? (
-              <Button type="primary" onClick={() => handleSubmit(false)} loading={submitting}>
-                Nộp bài
-              </Button>
-            ) : (
-              <Button type="primary" onClick={() => handleSetCurrent(Math.min(questions.length - 1, current + 1))}>
-                Câu tiếp theo
-              </Button>
-            )}
+            <Button
+              type="primary"
+              onClick={() => handleSetCurrent(Math.min(questions.length - 1, current + 1))}
+              disabled={current === questions.length - 1}
+            >
+              Câu tiếp theo
+            </Button>
           </div>
         </div>
         {/* Sidebar câu hỏi */}
@@ -484,6 +496,9 @@ const ThucHienBaiThi = ({ setSidebarCollapsed }) => {
               );
             })}
           </div>
+          <Button type="primary" style={{ marginTop: 16, width: '100%' }} onClick={() => handleSubmit(false)} loading={submitting}>
+            Nộp bài
+          </Button>
         </div>
       </div>
       {/* Modal xác nhận nộp bài */}

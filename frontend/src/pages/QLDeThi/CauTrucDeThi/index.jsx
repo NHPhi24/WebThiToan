@@ -7,6 +7,7 @@ import CauTrucDeThiModal from './CauTrucDeThiModal';
 import CauTrucDeThiDetailModal from './CauTrucDeThiDetailModal';
 import { useNavigate } from 'react-router-dom';
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
+import Filter from '../../../components/Filter';
 const CauTruDeThi = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -16,6 +17,7 @@ const CauTruDeThi = () => {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [detailRecord, setDetailRecord] = useState(null);
   const [search, setSearch] = useState('');
+  const [filterValues, setFilterValues] = useState({});
   const handleView = (record) => {
     setDetailRecord(record);
     setDetailModalOpen(true);
@@ -62,8 +64,17 @@ const CauTruDeThi = () => {
     });
   };
 
-  // Lọc dữ liệu theo tên cấu trúc
-  const filteredData = data.filter((row) => row.template_name?.toLowerCase().includes(search.toLowerCase()));
+  // Lọc dữ liệu theo tên cấu trúc và lớp
+  const filteredData = data.filter((row) => {
+    // Lọc theo tên
+    const matchName = row.template_name?.toLowerCase().includes(search.toLowerCase());
+    // Lọc theo lớp
+    let matchGrade = true;
+    if (filterValues.grade && filterValues.grade !== 'ALL') {
+      matchGrade = String(row.grade) === String(filterValues.grade);
+    }
+    return matchName && matchGrade;
+  });
 
   const columns = [
     { title: 'Tên cấu trúc', dataIndex: 'template_name', key: 'template_name' },
@@ -99,6 +110,7 @@ const CauTruDeThi = () => {
           <Button type="primary" onClick={() => setAddModalOpen(true)}>
             Thêm cấu trúc
           </Button>
+          <Filter filterKeys={['grade']} onChange={setFilterValues} />
           <SearchInput
             placeholder="Tìm kiếm theo tên cấu trúc..."
             value={search}
@@ -107,7 +119,17 @@ const CauTruDeThi = () => {
           />
         </div>
       </div>
-      <Table columns={columns} dataSource={filteredData} loading={loading} rowKey="id" pagination={{ pageSize: 10 }} />
+      <Table
+        columns={columns}
+        dataSource={filteredData}
+        loading={loading}
+        rowKey="id"
+        pagination={{
+          showTotal: (total, range) => `${range[0]}-${range[1]}: ${total}`,
+          showSizeChanger: true,
+          pageSizeOptions: ['10', '20', '50', '100'],
+        }}
+      />
       <CauTrucDeThiModal
         open={addModalOpen || editModalOpen}
         onClose={() => {

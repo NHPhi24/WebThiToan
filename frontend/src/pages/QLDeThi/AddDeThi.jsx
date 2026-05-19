@@ -25,7 +25,6 @@ const AddDeThi = ({ onSubmit, onOpenStructure, loading, autoMode }) => {
   const handleFinish = (values) => {
     // Thêm grade vào payload gửi lên BE
     const payload = { exam_code: values.exam_code, template_id: values.template_id, teacher_id: user?.id, grade: values.grade };
-    console.log('Payload gửi lên BE:', payload);
     if (onSubmit) onSubmit(payload);
   };
 
