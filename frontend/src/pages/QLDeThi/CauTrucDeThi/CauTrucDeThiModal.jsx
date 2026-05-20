@@ -33,6 +33,12 @@ const CauTrucDeThiModal = ({ open, onClose, onSuccess, editRecord }) => {
   }, [editRecord, open, form]);
 
   const handleSubmit = async (values) => {
+    // Kiểm tra tổng % không vượt quá 100
+    const totalPercent = Number(values.basic_percent || 0) + Number(values.advanced_percent || 0);
+    if (totalPercent > 100) {
+      message.error('Tổng % cơ bản và nâng cao không được vượt quá 100!');
+      return;
+    }
     setLoading(true);
     try {
       // Kiểm tra trùng tên cấu trúc đề thi
@@ -105,10 +111,20 @@ const CauTrucDeThiModal = ({ open, onClose, onSuccess, editRecord }) => {
           <InputNumber min={1} style={{ width: '100%' }} placeholder="Nhập tổng số câu" />
         </Form.Item>
         <Form.Item label="% Cơ bản" name="basic_percent" rules={[{ required: true, message: 'Vui lòng nhập % cơ bản' }]}>
-          <InputNumber min={0} max={100} style={{ width: '100%' }} placeholder="Nhập % cơ bản" />
+          <InputNumber
+            min={0}
+            max={100}
+            step={10}
+            style={{ width: '100%' }}
+            placeholder="Nhập % cơ bản"
+            onChange={(value) => {
+              // Tự động cập nhật % nâng cao để tổng là 100
+              form.setFieldsValue({ advanced_percent: 100 - (Number(value) || 0) });
+            }}
+          />
         </Form.Item>
         <Form.Item label="% Nâng cao" name="advanced_percent" rules={[{ required: true, message: 'Vui lòng nhập % nâng cao' }]}>
-          <InputNumber min={0} max={100} style={{ width: '100%' }} placeholder="Nhập % nâng cao" />
+          <InputNumber min={0} max={100} step={10} disabled style={{ width: '100%' }} />
         </Form.Item>
         <Form.Item>
           <Button type="primary" htmlType="submit" loading={loading} block>

@@ -371,6 +371,12 @@ const QLCaThi = ({ user, isLoggedIn }) => {
                 key: 'register_status',
                 render: (status) => (status === 10 ? 'Chờ duyệt' : status === 20 ? 'Đã duyệt' : status === 50 ? 'Từ chối' : status),
               },
+              {
+                title: 'Trạng thái ca thi',
+                dataIndex: 'session_status',
+                key: 'session_status',
+                render: (status) => (status ? getStatusLabel(status) : '-'),
+              },
             ]}
             dataSource={registeredSessions
               .slice() // copy mảng
@@ -384,6 +390,7 @@ const QLCaThi = ({ user, isLoggedIn }) => {
                   start_time: session.start_time,
                   grade: session.grade, // Thêm trường grade để hiển thị khối/lớp
                   register_status: p.register_status,
+                  session_status: session.status,
                 };
               })}
             pagination={false}
