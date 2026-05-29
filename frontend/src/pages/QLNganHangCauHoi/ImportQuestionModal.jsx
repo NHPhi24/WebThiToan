@@ -18,6 +18,7 @@ const headers = [
   'Giải thích', // explanation
   'Độ khó', // level
   'Khối lớp', // grade
+  'Dạng bài', // topic
 ];
 
 // Map trường tiếng Việt về trường DB (có ID giáo viên)
@@ -32,9 +33,10 @@ const fieldMap = {
   'Giải thích': 'explanation',
   'Độ khó': 'level',
   'Khối lớp': 'grade',
+  'Dạng bài': 'topic',
 };
 
-const ImportQuestionModal = ({ visible, onClose, onImport }) => {
+const ImportQuestionModal = ({ visible, onClose, onImport, onImported }) => {
   const notify = useNotify();
   const [previewData, setPreviewData] = useState([]);
   const [validateErrors, setValidateErrors] = useState([]);
@@ -66,16 +68,19 @@ const ImportQuestionModal = ({ visible, onClose, onImport }) => {
   };
   useEffect(() => {
     if (previewData.length > 0) {
-      const errors = validateData(previewData);
+      const { errors, mathStructs } = validateData(previewData);
+
+      // Cập nhật state song song
       setValidateErrors(errors);
-      // Debug log
-      console.log('validateErrors:', errors);
-      console.log('mathStructList:', mathStructList);
-      if (errors.length > 0 || mathStructList.length > 0) {
-        setShowConfirmModal(true);
+      setMathStructList(mathStructs);
+
+      // Sử dụng biến cục bộ vừa tính toán xong, không sợ bất đồng bộ
+      if (errors.length > 0 || mathStructs.length > 0) {
+        setShowConfirmModal(true); // Hiển thị cảnh báo ngay khi load file xong nếu có lỗi/warning
       }
     } else {
       setValidateErrors([]);
+      setMathStructList([]);
     }
   }, [allQuestions, previewData]);
 
@@ -163,12 +168,14 @@ const ImportQuestionModal = ({ visible, onClose, onImport }) => {
         const normMath = normalizeContentForMath(row.content);
         let foundExact = false;
         let foundMathStruct = false;
+
         for (const q of allQuestions) {
           const normQ = normalizeContent(q.content);
           const normMathQ = normalizeContentForMath(q.content);
           if (norm === normQ) foundExact = true;
           else if (normMath === normMathQ) foundMathStruct = true;
         }
+
         if (foundExact) {
           errors.push({ row: idx + 1, message: 'Câu hỏi này đã tồn tại (trùng hoàn toàn)!' });
         } else if (foundMathStruct) {
@@ -176,8 +183,7 @@ const ImportQuestionModal = ({ visible, onClose, onImport }) => {
         }
       }
     });
-    setMathStructList(mathStructs);
-    return errors;
+    return { errors, mathStructs };
   };
 
   const handleFileChange = (e) => {
@@ -213,11 +219,12 @@ const ImportQuestionModal = ({ visible, onClose, onImport }) => {
   };
 
   const handleImport = async () => {
-    // Nếu có lỗi hoặc mathStruct thì show modal xác nhận gộp
+    // Nếu phát hiện có lỗi nghiêm trọng hoặc cảnh báo cấu trúc, hiện modal và DỪNG LẠI NGAY
     if (validateErrors.length > 0 || mathStructList.length > 0) {
       setShowConfirmModal(true);
-      return;
+      return; // <--- Cực kỳ quan trọng, đảm bảo không chạy xuống dưới
     }
+
     setImporting(true);
     try {
       if (onImport) {
@@ -229,9 +236,13 @@ const ImportQuestionModal = ({ visible, onClose, onImport }) => {
           return;
         }
       }
-    } catch (err) {}
-    setImporting(false);
-    await doImport(false);
+      // Nếu hoàn toàn sạch sẽ, không trùng, không cảnh báo thì mới thực hiện import luôn
+      await doImport(false);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setImporting(false);
+    }
   };
 
   // Thực hiện import, nếu skipInvalid=true thì chỉ gửi bản ghi hợp lệ
@@ -264,47 +275,121 @@ const ImportQuestionModal = ({ visible, onClose, onImport }) => {
         return;
       }
       if (onImport) {
+        // Nếu parent có cung cấp onImport, gọi nó. Nếu nó xử lý import thật, hy vọng nó trả về kết quả.
         const result = await onImport(dataToImport);
-        // Nếu kết quả trả về có inserted/skipped/mathStruct thì hiển thị chi tiết
-        if (result && (result.inserted || result.skipped || result.mathStruct)) {
-          // Gộp lại thành 1 mảng kết quả để hiển thị
+        if (result) {
+          // Nếu parent trả về kết quả (inserted/skipped/mathStruct), hiển thị chi tiết
+          if (result && (result.inserted || result.skipped || result.mathStruct)) {
+            const importDetails = [];
+            if (Array.isArray(result.inserted)) {
+              result.inserted.forEach((q) => {
+                importDetails.push({ content: q.content, status: 'created', info: 'Thành công' });
+              });
+            }
+            if (Array.isArray(result.skipped)) {
+              result.skipped.forEach((q) => {
+                importDetails.push({ content: q.content, status: 'skipped', info: q.reason || 'Bị bỏ qua' });
+              });
+            }
+            if (Array.isArray(result.mathStruct)) {
+              result.mathStruct.forEach((q) => {
+                importDetails.push({ content: q.row?.content, status: 'mathStruct', info: q.warning || 'Cảnh báo cấu trúc toán học' });
+              });
+            }
+            setImportResult(importDetails);
+            if (typeof onImported === 'function') {
+              try {
+                onImported();
+              } catch (e) {}
+            }
+          } else {
+            setImportResult(result);
+            if (typeof onImported === 'function') {
+              try {
+                onImported();
+              } catch (e) {}
+            }
+          }
+        } else {
+          // Nếu parent không thực hiện import thật (trả về undefined), thực hiện import tại đây
           const importDetails = [];
-          if (Array.isArray(result.inserted)) {
-            result.inserted.forEach((q) => {
-              importDetails.push({
-                content: q.content,
-                status: 'created',
-                info: 'Thành công',
-              });
-            });
-          }
-          if (Array.isArray(result.skipped)) {
-            result.skipped.forEach((q) => {
-              importDetails.push({
-                content: q.content,
-                status: 'skipped',
-                info: q.reason || 'Bị bỏ qua',
-              });
-            });
-          }
-          if (Array.isArray(result.mathStruct)) {
-            result.mathStruct.forEach((q) => {
-              importDetails.push({
-                content: q.row?.content,
-                status: 'mathStruct',
-                info: q.warning || 'Cảnh báo cấu trúc toán học',
-              });
-            });
+          for (const q of dataToImport) {
+            try {
+              // Gọi BE để kiểm tra tương đồng trước khi insert (dry-run)
+              let sim;
+              try {
+                const simRes = await api.checkQuestionSimilarity(q.content);
+                sim = simRes.data || simRes;
+              } catch (e) {
+                // Nếu lỗi khi check, xử lý như lỗi
+                importDetails.push({ content: q.content, status: 'error', info: e?.message || 'Lỗi khi kiểm tra tương đồng' });
+                continue;
+              }
+              if (sim?.decision === 'warning') {
+                const proceed = await new Promise((resolve) => {
+                  Modal.confirm({
+                    title: 'Cảnh báo tương đồng',
+                    content: (
+                      <div>
+                        <div>{sim.reason || 'Câu hỏi này có độ tương đồng cao với câu hỏi hiện có. Bạn có muốn tiếp tục import không?'}</div>
+                        {sim.matched_question_content ? (
+                          <div style={{ marginTop: 12 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Câu hỏi tương đồng:</div>
+                            <div style={{ padding: 8, background: '#fafafa', borderRadius: 4 }}>
+                              <MathText>{sim.matched_question_content}</MathText>
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    ),
+                    okText: 'Import',
+                    cancelText: 'Bỏ qua',
+                    onOk: () => resolve(true),
+                    onCancel: () => resolve(false),
+                  });
+                });
+                if (!proceed) {
+                  importDetails.push({ content: q.content, status: 'skipped', info: sim.reason || 'Bị bỏ qua bởi người dùng' });
+                  continue;
+                }
+                // Người dùng xác nhận, gọi BE với force để insert
+                try {
+                  await api.createQuestion({ ...q, force: true });
+                  importDetails.push({ content: q.content, status: 'created', info: 'Thành công' });
+                } catch (err2) {
+                  let errorMsg2 = err2?.response?.data?.error || err2?.message || 'Lỗi';
+                  importDetails.push({ content: q.content, status: 'error', info: errorMsg2 });
+                }
+              } else if (sim?.decision === 'reject') {
+                importDetails.push({ content: q.content, status: 'skipped', info: sim.reason || 'Bị từ chối bởi hệ thống' });
+              } else {
+                // allowed -> insert normally
+                try {
+                  await api.createQuestion(q);
+                  importDetails.push({ content: q.content, status: 'created', info: 'Thành công' });
+                } catch (err3) {
+                  let errorMsg3 = err3?.response?.data?.error || err3?.message || 'Lỗi';
+                  importDetails.push({ content: q.content, status: 'error', info: errorMsg3 });
+                }
+              }
+            } catch (err) {
+              let errorMsg = err?.response?.data?.error || err?.message || 'Lỗi';
+              importDetails.push({ content: q.content, status: 'error', info: errorMsg });
+            }
           }
           setImportResult(importDetails);
-        } else {
-          setImportResult(result);
+          if (typeof onImported === 'function') {
+            try {
+              onImported();
+            } catch (e) {}
+          }
         }
       }
       setPreviewData([]);
       setValidateErrors([]);
       setMathStructList([]);
       setShowMathStructModal(false);
+      // onImported sẽ được gọi sau khi import kết thúc (nếu được cung cấp)
       // Không notify và không đóng modal, chỉ hiển thị chi tiết trong modal
     } catch (err) {
       notify.error('Import thất bại: ' + (err?.message || 'Lỗi không xác định'));
@@ -329,6 +414,7 @@ const ImportQuestionModal = ({ visible, onClose, onImport }) => {
     { title: 'Giải thích', dataIndex: 'explanation', key: 'explanation', render: (text) => text },
     { title: 'Độ khó', dataIndex: 'level', key: 'level' },
     { title: 'Khối lớp', dataIndex: 'grade', key: 'grade' },
+    { title: 'Dạng bài', dataIndex: 'topic', key: 'topic' },
   ];
 
   return (

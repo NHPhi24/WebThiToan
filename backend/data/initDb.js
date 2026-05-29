@@ -18,6 +18,8 @@ const initDb = async () => {
     CREATE TABLE IF NOT EXISTS questions (
       id SERIAL PRIMARY KEY,
       teacher_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      -- Topic or classification of the question (e.g., hàm số, tích phân)
+      topic VARCHAR(100),
       content TEXT NOT NULL,
       ans_a TEXT NOT NULL,
       ans_b TEXT NOT NULL,
@@ -37,6 +39,7 @@ const initDb = async () => {
       basic_percent INTEGER DEFAULT 70,
       advanced_percent INTEGER DEFAULT 30,
       teacher_id INTEGER REFERENCES users(id),
+      structure JSONB DEFAULT '[]',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       grade INTEGER CHECK (grade IN (10, 11, 12))
     );
@@ -119,6 +122,36 @@ const initDb = async () => {
         SELECT 1 FROM information_schema.columns WHERE table_name = 'exam_results' AND column_name = 'is_submitted'
       ) THEN
         ALTER TABLE exam_results ADD COLUMN is_submitted BOOLEAN DEFAULT FALSE;
+      END IF;
+    END
+    $$;
+    -- Đảm bảo cột topic tồn tại trong bảng questions (migration an toàn)
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns WHERE table_name = 'questions' AND column_name = 'topic'
+      ) THEN
+        ALTER TABLE questions ADD COLUMN topic VARCHAR(100);
+      END IF;
+    END
+    $$;
+    -- Nếu đang có cột tags cũ, xoá nó (migration an toàn)
+    DO $$
+    BEGIN
+      IF EXISTS (
+        SELECT 1 FROM information_schema.columns WHERE table_name = 'questions' AND column_name = 'tags'
+      ) THEN
+        ALTER TABLE questions DROP COLUMN tags;
+      END IF;
+    END
+    $$;
+    -- Đảm bảo cột structure tồn tại trong exam_templates
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns WHERE table_name = 'exam_templates' AND column_name = 'structure'
+      ) THEN
+        ALTER TABLE exam_templates ADD COLUMN structure JSONB DEFAULT '[]';
       END IF;
     END
     $$;

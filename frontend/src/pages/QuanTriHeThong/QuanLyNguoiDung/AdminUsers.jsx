@@ -330,7 +330,8 @@ const AdminUsers = () => {
         {viewUser && (
           <div>
             <p>
-              <b>Tên đăng nhập:</b> {viewUser.username} | <b>Mật khẩu:</b> {viewUser.password ? viewUser.password : 'Không có'}
+              {/* <b>Tên đăng nhập:</b> {viewUser.username} | <b>Mật khẩu:</b> {viewUser.password ? viewUser.password : 'Không có'} */}
+              <b>Tên đăng nhập:</b> {viewUser.username}
             </p>
             <p>
               <b>Họ và tên:</b> {viewUser.full_name}

@@ -226,9 +226,7 @@ const QLDangKyCaThi = () => {
             <Button type="primary" onClick={() => setAddStudentModalOpen(true)}>
               Tạo học sinh tham gia thi
             </Button>
-            <Button style={{ marginLeft: 8 }} onClick={() => setImportModalOpen(true)}>
-              Import
-            </Button>
+            <Button onClick={() => setImportModalOpen(true)}>Import</Button>
           </>
         )}
         <SearchInput

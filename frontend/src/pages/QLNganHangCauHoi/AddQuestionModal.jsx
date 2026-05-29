@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Modal, Form, Input, message, Typography, Select } from 'antd';
 import SimilarityWarningModal from '../../components/SimilarityWarningModal';
-import { QUESTION_LEVELS } from '../../constants/constant';
+import { QUESTION_LEVELS, DANGCAUHOI } from '../../constants/constant';
 import apiService from '../../services/api';
 import 'katex/dist/katex.min.css';
 import { BlockMath } from 'react-katex';
@@ -29,6 +29,7 @@ const AddQuestionModal = ({ open, onClose, onSuccess, edit = false, view = false
         ans_d: data.ans_d,
         correct_ans: data.correct_ans,
         explanation: data.explanation,
+        topic: data.topic || (DANGCAUHOI.find((d) => d.grade === (data.grade || 10)) || DANGCAUHOI[0]).value,
         level: String(data.level) === '1' ? 1 : 0,
         grade: data.grade || 10,
       });
@@ -49,6 +50,18 @@ const AddQuestionModal = ({ open, onClose, onSuccess, edit = false, view = false
       setExplanationPreview('');
     }
   }, [edit, view, data, open]);
+
+  // Watch grade to filter topic options and set default topic when needed
+  const watchedGrade = Form.useWatch('grade', form) || 10;
+  const topicOptions = DANGCAUHOI.filter((d) => Number(d.grade) === Number(watchedGrade)).map((o) => ({ label: o.label, value: o.value }));
+
+  React.useEffect(() => {
+    // If no topic selected or current topic not in options, set to first option of the grade
+    const currentTopic = form.getFieldValue('topic');
+    if ((!currentTopic || !topicOptions.find((t) => t.value === currentTopic)) && topicOptions.length > 0) {
+      form.setFieldsValue({ topic: topicOptions[0].value });
+    }
+  }, [watchedGrade]);
 
   // Lấy user từ localStorage
   const user = JSON.parse(localStorage.getItem('user') || 'null');
@@ -419,6 +432,14 @@ const AddQuestionModal = ({ open, onClose, onSuccess, edit = false, view = false
               ]}
             />
           </Form.Item>
+          <Form.Item label="Dạng bài" name="topic">
+            {!view ? (
+              <Select placeholder="Chọn dạng bài" options={topicOptions} />
+            ) : (
+              <Select placeholder="Dạng bài" options={topicOptions} disabled />
+            )}
+          </Form.Item>
+          {/* Tags removed — field deprecated */}
           <Form.Item label="Độ khó" name="level" rules={[{ required: true, message: 'Chọn độ khó' }]}>
             <Select placeholder="Chọn độ khó" options={QUESTION_LEVELS} />
           </Form.Item>

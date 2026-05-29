@@ -5,6 +5,7 @@ import api from '../../../services/api';
 import OperationColumn from '../../../components/ActionIcons';
 import CauTrucDeThiModal from './CauTrucDeThiModal';
 import CauTrucDeThiDetailModal from './CauTrucDeThiDetailModal';
+import { DANGCAUHOI } from '../../../constants/constant';
 import { useNavigate } from 'react-router-dom';
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import Filter from '../../../components/Filter';
@@ -81,6 +82,16 @@ const CauTruDeThi = () => {
     { title: 'Tổng số câu', dataIndex: 'total_questions', key: 'total_questions' },
     { title: '% Cơ bản', dataIndex: 'basic_percent', key: 'basic_percent' },
     { title: '% Nâng cao', dataIndex: 'advanced_percent', key: 'advanced_percent' },
+    {
+      title: 'Dạng bài',
+      dataIndex: 'structure',
+      key: 'topics',
+      render: (structure) => {
+        if (!structure || !Array.isArray(structure.items)) return <span>-</span>;
+        const labels = structure.items.map((it) => DANGCAUHOI.find((o) => o.value === it.topic)?.label || it.topic).filter(Boolean);
+        return <span>{labels.length ? labels.join(', ') : '-'}</span>;
+      },
+    },
     { title: 'Khối/Lớp', dataIndex: 'grade', key: 'grade', render: (grade) => <span>{grade ? `Lớp ${grade}` : '-'}</span> },
     {
       title: 'Giáo viên tạo',

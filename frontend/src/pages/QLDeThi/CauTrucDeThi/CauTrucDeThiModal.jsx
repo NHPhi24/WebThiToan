@@ -10,7 +10,9 @@ const getCurrentUser = () => {
     return null;
   }
 };
-import { Modal, Form, Input, InputNumber, Button, message } from 'antd';
+import { Modal, Form, Input, InputNumber, Button, message, Radio, Select, Space } from 'antd';
+import { PlusOutlined, MinusCircleOutlined } from '@ant-design/icons';
+import { DANGCAUHOI } from '../../../constants/constant';
 import api from '../../../services/api';
 
 const CauTrucDeThiModal = ({ open, onClose, onSuccess, editRecord }) => {
@@ -21,16 +23,55 @@ const CauTrucDeThiModal = ({ open, onClose, onSuccess, editRecord }) => {
 
   useEffect(() => {
     if (editRecord && open) {
-      form.setFieldsValue(editRecord);
+      // Ensure structure shape exists
+      const init = { ...editRecord };
+      if (!init.structure) init.structure = { mode: 'default', items: [] };
+      form.setFieldsValue(init);
     } else if (open) {
       form.setFieldsValue({
         total_questions: 10,
         basic_percent: 80,
         advanced_percent: 20,
         grade: 10,
+        structure: { mode: 'default', items: [] },
       });
     }
   }, [editRecord, open, form]);
+
+  const watchedGrade = Form.useWatch('grade', form) || 10;
+  // For grade 10: only show grade 10 topics
+  // For grade 11: show grade 11 + grade 10 topics
+  // For grade 12: show grade 12 + grade 11 + grade 10 topics
+  const gradeNum = Number(watchedGrade) || 10;
+  let allowedGrades = [];
+  if (gradeNum === 10) allowedGrades = [10];
+  else if (gradeNum === 11) allowedGrades = [11, 10];
+  else if (gradeNum === 12) allowedGrades = [12, 11, 10];
+  else allowedGrades = [gradeNum];
+
+  const topicOptionsByGrade = DANGCAUHOI.filter((d) => allowedGrades.includes(Number(d.grade))).map((o) => ({ label: o.label, value: o.value }));
+
+  // When grade changes, normalize existing structure.items so their topics match the selected grade
+  React.useEffect(() => {
+    const mode = form.getFieldValue(['structure', 'mode']) || 'default';
+    if (mode !== 'selection') return;
+    const items = form.getFieldValue(['structure', 'items']) || [];
+    const allowed = topicOptionsByGrade.map((o) => o.value);
+    if (allowed.length === 0) {
+      if ((items || []).length > 0) {
+        form.setFieldsValue({ structure: { ...(form.getFieldValue('structure') || {}), items: [] } });
+      }
+      return;
+    }
+    const newItems = (items || []).map((it) => {
+      if (!it) return it;
+      if (allowed.includes(it.topic)) return it;
+      return { ...it, topic: allowed[0] };
+    });
+    if (JSON.stringify(newItems) !== JSON.stringify(items)) {
+      form.setFieldsValue({ structure: { ...(form.getFieldValue('structure') || {}), items: newItems } });
+    }
+  }, [watchedGrade]);
 
   const handleSubmit = async (values) => {
     // Kiểm tra tổng % không vượt quá 100
@@ -54,6 +95,17 @@ const CauTrucDeThiModal = ({ open, onClose, onSuccess, editRecord }) => {
       let submitValues = { ...values };
       // Đảm bảo luôn truyền đúng teacher_id
       submitValues.teacher_id = user?.id;
+      // Nếu không có structure, ensure null
+      if (!submitValues.structure) submitValues.structure = null;
+      // Kiểm tra tổng số câu trong cấu trúc (client-side)
+      if (submitValues.structure && submitValues.structure.mode === 'selection' && Array.isArray(submitValues.structure.items)) {
+        const totalFromStructure = submitValues.structure.items.reduce((sum, it) => sum + Number(it.basic || 0) + Number(it.advanced || 0), 0);
+        if (Number(submitValues.total_questions || 0) > 0 && totalFromStructure > Number(submitValues.total_questions)) {
+          message.error('Tổng các câu trong cấu trúc vượt quá Tổng số câu. Vui lòng điều chỉnh.');
+          setLoading(false);
+          return;
+        }
+      }
       if (editRecord) {
         await api.updateExamTemplate(editRecord.id, submitValues);
         message.success('Cập nhật cấu trúc đề thi thành công');
@@ -110,21 +162,147 @@ const CauTrucDeThiModal = ({ open, onClose, onSuccess, editRecord }) => {
         <Form.Item label="Tổng số câu" name="total_questions" rules={[{ required: true, message: 'Vui lòng nhập tổng số câu' }]}>
           <InputNumber min={1} style={{ width: '100%' }} placeholder="Nhập tổng số câu" />
         </Form.Item>
-        <Form.Item label="% Cơ bản" name="basic_percent" rules={[{ required: true, message: 'Vui lòng nhập % cơ bản' }]}>
-          <InputNumber
-            min={0}
-            max={100}
-            step={10}
-            style={{ width: '100%' }}
-            placeholder="Nhập % cơ bản"
-            onChange={(value) => {
-              // Tự động cập nhật % nâng cao để tổng là 100
-              form.setFieldsValue({ advanced_percent: 100 - (Number(value) || 0) });
-            }}
-          />
+        <Form.Item label="Chế độ cấu trúc" name={['structure', 'mode']} initialValue="default">
+          <Radio.Group>
+            <Radio value="default">Giữ nguyên (theo % tổng quát)</Radio>
+            <Radio value="selection">Chọn theo dạng bài</Radio>
+          </Radio.Group>
         </Form.Item>
-        <Form.Item label="% Nâng cao" name="advanced_percent" rules={[{ required: true, message: 'Vui lòng nhập % nâng cao' }]}>
-          <InputNumber min={0} max={100} step={10} disabled style={{ width: '100%' }} />
+        {/* Nếu chọn selection, hiển thị danh sách chủ đề + số cơ bản/nâng cao */}
+        <Form.Item shouldUpdate={(prev, cur) => prev.structure?.mode !== cur.structure?.mode || prev.total_questions !== cur.total_questions}>
+          {() => {
+            const mode = form.getFieldValue(['structure', 'mode']) || 'default';
+            if (mode !== 'selection') return null;
+            return (
+              <Form.List name={['structure', 'items']}>
+                {(fields, { add, remove }) => (
+                  <div>
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 6, padding: '0 8px' }}>
+                      <div style={{ width: 220, fontWeight: 600 }}>Dạng bài</div>
+                      <div style={{ width: 120, fontWeight: 600 }}>Số cơ bản</div>
+                      <div style={{ width: 120, fontWeight: 600 }}>Số nâng cao</div>
+                      <div style={{ width: 24 }} />
+                    </div>
+
+                    {fields.map((field) => (
+                      <Space key={`${field.key}-${field.name}`} style={{ display: 'flex', marginBottom: 8 }} align="start">
+                        <Form.Item
+                          {...field}
+                          name={[field.name, 'topic']}
+                          fieldKey={[field.fieldKey, 'topic']}
+                          rules={[{ required: true, message: 'Chọn dạng bài' }]}
+                        >
+                          <Select style={{ width: 220 }} options={topicOptionsByGrade} placeholder="Chọn dạng bài" />
+                        </Form.Item>
+                        <Form.Item
+                          {...field}
+                          name={[field.name, 'basic']}
+                          fieldKey={[field.fieldKey, 'basic']}
+                          rules={[{ required: true, message: 'Nhập số câu cơ bản' }]}
+                        >
+                          <InputNumber min={0} style={{ width: 120 }} placeholder="Số Cơ bản" />
+                        </Form.Item>
+                        <Form.Item
+                          {...field}
+                          name={[field.name, 'advanced']}
+                          fieldKey={[field.fieldKey, 'advanced']}
+                          rules={[{ required: true, message: 'Nhập số câu nâng cao' }]}
+                        >
+                          <InputNumber min={0} style={{ width: 120 }} placeholder="Số Nâng cao" />
+                        </Form.Item>
+                        <MinusCircleOutlined onClick={() => remove(field.name)} style={{ marginTop: 8 }} />
+                      </Space>
+                    ))}
+                    <Form.Item>
+                      <Button
+                        type="dashed"
+                        onClick={() => {
+                          const items = form.getFieldValue(['structure', 'items']) || [];
+                          const total = items.reduce((s, it) => s + Number(it?.basic || 0) + Number(it?.advanced || 0), 0);
+                          const totalQ = Number(form.getFieldValue('total_questions') || 0);
+                          if (totalQ > 0 && total >= totalQ) {
+                            message.error('Không thể thêm dạng bài: tổng số câu theo cấu trúc đã đạt tối đa.');
+                            return;
+                          }
+                          add({ topic: undefined, basic: 0, advanced: 0 });
+                        }}
+                        block
+                        icon={<PlusOutlined />}
+                      >
+                        Thêm dạng bài
+                      </Button>
+                    </Form.Item>
+                    <div style={{ marginTop: 8 }}>
+                      <b>Tổng theo cấu trúc:</b>{' '}
+                      {(() => {
+                        const items = form.getFieldValue(['structure', 'items']) || [];
+                        const total = items.reduce((s, it) => s + Number(it?.basic || 0) + Number(it?.advanced || 0), 0);
+                        const totalQ = form.getFieldValue('total_questions') || 0;
+                        const remaining = totalQ - total;
+                        return (
+                          <div>
+                            <div>
+                              <span>
+                                {total} / {totalQ}
+                              </span>
+                            </div>
+                            <div style={{ color: remaining <= 0 ? '#888' : '#333', marginTop: 6 }}>
+                              <b>Phần còn lại:</b> {remaining} câu
+                            </div>
+                            <div style={{ marginTop: 6, fontSize: 12, color: '#666' }}>
+                              Lưu ý: Các mục cố định sẽ được lấy trước; phần còn lại (nếu có) sẽ áp dụng % Cơ bản / % Nâng cao.
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                )}
+              </Form.List>
+            );
+          }}
+        </Form.Item>
+        <Form.Item
+          shouldUpdate={(prev, cur) => {
+            const items = (cur.structure && cur.structure.items) || [];
+            const fixed = items.reduce((s, it) => s + Number(it?.basic || 0) + Number(it?.advanced || 0), 0);
+            const totalQ = Number(cur.total_questions || prev.total_questions || 0);
+            return (
+              fixed !==
+                ((prev.structure && prev.structure.items) || []).reduce((s, it) => s + Number(it?.basic || 0) + Number(it?.advanced || 0), 0) ||
+              totalQ !== Number(prev.total_questions || 0)
+            );
+          }}
+        >
+          {() => {
+            const items = form.getFieldValue(['structure', 'items']) || [];
+            const fixed = items.reduce((s, it) => s + Number(it?.basic || 0) + Number(it?.advanced || 0), 0);
+            const totalQ = form.getFieldValue('total_questions') || 0;
+            const remaining = totalQ - fixed;
+            const disabledPerc = remaining <= 0;
+            return (
+              <>
+                <Form.Item label="% Cơ bản" name="basic_percent" rules={[{ required: true, message: 'Vui lòng nhập % cơ bản' }]}>
+                  <InputNumber
+                    min={0}
+                    max={100}
+                    step={10}
+                    style={{ width: '100%' }}
+                    placeholder="Nhập % cơ bản"
+                    disabled={disabledPerc}
+                    onChange={(value) => {
+                      // Tự động cập nhật % nâng cao để tổng là 100
+                      form.setFieldsValue({ advanced_percent: 100 - (Number(value) || 0) });
+                    }}
+                  />
+                </Form.Item>
+                <Form.Item label="% Nâng cao" name="advanced_percent" rules={[{ required: true, message: 'Vui lòng nhập % nâng cao' }]}>
+                  <InputNumber min={0} max={100} step={10} disabled style={{ width: '100%' }} />
+                </Form.Item>
+                {disabledPerc ? <div style={{ color: '#888', fontSize: 12 }}>Các chỉ số % bị vô hiệu vì tổng mục cố định đã đầy.</div> : null}
+              </>
+            );
+          }}
         </Form.Item>
         <Form.Item>
           <Button type="primary" htmlType="submit" loading={loading} block>

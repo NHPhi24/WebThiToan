@@ -1,5 +1,5 @@
 class ExamTemplate {
-  constructor({ id, template_name, total_questions, basic_percent, advanced_percent, teacher_id, grade, created_at }) {
+  constructor({ id, template_name, total_questions, basic_percent, advanced_percent, teacher_id, grade, structure, created_at }) {
     this.id = id;
     this.template_name = template_name;
     this.total_questions = total_questions;
@@ -7,6 +7,7 @@ class ExamTemplate {
     this.advanced_percent = advanced_percent;
     this.teacher_id = teacher_id;
     this.grade = grade;
+    this.structure = structure || null;
     this.created_at = created_at;
   }
 

@@ -8,6 +8,7 @@ import AddDeThi from './AddDeThi';
 import api from '../../services/api';
 import MathText from '../../utils/MathText';
 import { render } from 'katex';
+import { DANGCAUHOI, QUESTION_LEVELS } from '../../constants/constant';
 
 const QLDeThi = () => {
   const [data, setData] = useState([]);
@@ -221,6 +222,14 @@ const QLDeThi = () => {
                       <div>
                         <b>Câu {idx + 1}:</b> <MathText>{q.content}</MathText>
                       </div>
+                      <div style={{ marginTop: 6, marginLeft: 12, color: '#666', fontSize: 13 }}>
+                        <span style={{ marginRight: 12 }}>
+                          <b>Dạng bài:</b> {DANGCAUHOI.find((o) => o.value === q.topic)?.label || q.topic || 'N/A'}
+                        </span>
+                        <span>
+                          <b>Độ khó:</b> {QUESTION_LEVELS.find((l) => String(l.value) === String(q.level))?.label || q.level}
+                        </span>
+                      </div>
                       <div style={{ marginLeft: 12 }}>
                         <div>
                           A. <MathText>{q.ans_a}</MathText>
@@ -253,15 +262,39 @@ const QLDeThi = () => {
           loading={addModalLoading}
           onSubmit={({ exam_code, template_id, teacher_id, grade }) => {
             setAddModalLoading(true);
-            api
-              .autoGenerateExam({ exam_code, template_id, teacher_id, grade })
-              .then((res) => {
+            const doCreate = (confirmFallback = false) =>
+              api.autoGenerateExam({ exam_code, template_id, teacher_id, grade, confirmFallback }).then((res) => {
                 const code = res.data?.exam_code;
                 message.success(code ? `Tạo đề thi thành công. Mã đề: ${code}` : 'Tạo đề thi tự động thành công');
                 setAddModalOpen(false);
                 fetchData();
+              });
+
+            doCreate(false)
+              .catch((err) => {
+                const res = err.response;
+                if (res && res.status === 409 && res.data && Array.isArray(res.data.shortages)) {
+                  const shortages = res.data.shortages;
+                  const lines = shortages
+                    .map((s) => `Topic: ${s.topic} — ${s.level === 0 ? 'Cơ bản' : 'Nâng cao'} (Yêu cầu: ${s.requested}, Có: ${s.got})`)
+                    .join('\n');
+                  Modal.confirm({
+                    title: 'Thiếu câu hỏi theo cấu trúc',
+                    content: <pre style={{ whiteSpace: 'pre-wrap' }}>{lines}</pre>,
+                    okText: 'Tiếp tục tạo đề (lấp bằng câu khác)',
+                    cancelText: 'Hủy',
+                    onOk() {
+                      setAddModalLoading(true);
+                      return doCreate(true).catch(() => message.error('Tạo đề thi tự động thất bại'));
+                    },
+                    onCancel() {
+                      message.info('Đã hủy tạo đề do thiếu câu hỏi');
+                    },
+                  });
+                } else {
+                  message.error('Tạo đề thi tự động thất bại');
+                }
               })
-              .catch(() => message.error('Tạo đề thi tự động thất bại'))
               .finally(() => setAddModalLoading(false));
           }}
           onOpenStructure={() => setStructureModalOpen(true)}

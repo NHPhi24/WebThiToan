@@ -9,6 +9,9 @@ const upload = multer({ storage });
 router.get('/', questionController.getAllQuestions);
 router.post('/', questionController.createQuestion);
 
+// Dry-run similarity check
+router.post('/check-similarity', questionController.checkSimilarity);
+
 // Sửa câu hỏi
 router.put('/:id', questionController.updateQuestion);
 // Xóa câu hỏi

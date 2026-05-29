@@ -101,8 +101,8 @@ const ImportDKCaThi = ({ visible, onClose, sessionId, onImport }) => {
       // Nếu không có lỗi FE, gọi thử BE để lấy lỗi logic (READY, trùng, ...)
       if (errors.length === 0 && mappedData.length > 0) {
         try {
-          // Gọi thử import với skipInvalid=true, không lưu kết quả, chỉ lấy lỗi
-          const res = await api.importSessionParticipants({ session_id: Number(sessionId), users: mappedData });
+          // Gọi thử import ở chế độ dryRun (chỉ validate, không lưu kết quả)
+          const res = await api.importSessionParticipants({ session_id: Number(sessionId), users: mappedData, dryRun: true });
           // Xử lý lỗi từng dòng trả về từ BE
           const beErrors = [];
           res.data.forEach((r, idx) => {
@@ -138,9 +138,6 @@ const ImportDKCaThi = ({ visible, onClose, sessionId, onImport }) => {
         }
       }
       setValidateErrors(errors);
-      if (errors.length > 0) {
-        message.error('Import thất bại: Dữ liệu có lỗi, vui lòng kiểm tra lại!');
-      }
     };
     reader.readAsArrayBuffer(file);
     setFileInputKey(Date.now());
@@ -179,7 +176,7 @@ const ImportDKCaThi = ({ visible, onClose, sessionId, onImport }) => {
         setImporting(false);
         return;
       }
-      const res = await api.importSessionParticipants({ session_id: Number(sessionId), users: dataToImport });
+      const res = await api.importSessionParticipants({ session_id: Number(sessionId), users: dataToImport, skipInvalid });
       // Xử lý lỗi từng dòng trả về từ BE và tách bản ghi lỗi/thành công
       const newErrors = [];
       const failedRows = [];
@@ -198,7 +195,7 @@ const ImportDKCaThi = ({ visible, onClose, sessionId, onImport }) => {
             message:
               r.error ||
               (r.status === 'ready_other_session'
-                ? 'Học sinh đã đăng ký ca thi READY khác'
+                ? 'Học sinh đã đăng ký ca thi chưa kết thúc khác'
                 : r.status === 'grade_mismatch'
                   ? 'Khối của học sinh không khớp với ca thi'
                   : r.status === 'exists'
@@ -218,7 +215,12 @@ const ImportDKCaThi = ({ visible, onClose, sessionId, onImport }) => {
       setPreviewData(failedRows); // Chỉ hiển thị lại các bản ghi lỗi
       setValidateErrors(newErrors);
       if (newErrors.length > 0) {
-        message.error('Import thất bại: Có bản ghi lỗi, vui lòng kiểm tra lại!');
+        if (successRows.length > 0) {
+          message.warning(`Import hoàn tất: ${successRows.length} bản ghi được import, ${newErrors.length} bản ghi lỗi`);
+          onImport && onImport();
+        } else {
+          message.error('Import thất bại: Có bản ghi lỗi, vui lòng kiểm tra lại!');
+        }
       } else {
         message.success('Đã import học sinh hợp lệ vào ca thi!');
         setPreviewData([]);

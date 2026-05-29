@@ -38,7 +38,7 @@ exports.markJoined = async (req, res) => {
 const crypto = require('crypto');
 const User = require('../entities/user');
 exports.importSessionParticipants = async (req, res) => {
-  const { session_id, users, skipInvalid } = req.body;
+  const { session_id, users, skipInvalid, dryRun } = req.body; // dryRun: chỉ validate, không insert
   if (!session_id || !Array.isArray(users) || users.length === 0) {
     return res.status(400).json({ error: 'Thiếu session_id hoặc danh sách users' });
   }
@@ -96,17 +96,17 @@ exports.importSessionParticipants = async (req, res) => {
           }
         }
       }
-      // Kiểm tra học sinh đã có trong ca thi READY khác chưa
+      // Kiểm tra học sinh đã có trong ca thi khác chưa mà chưa kết thúc (READY hoặc ONGOING)
       if (!error && userRes && userRes.rows.length > 0 && uid) {
-        const readyOtherSession = await db.query(
+        const conflictingSession = await db.query(
           `SELECT sp.*, es.status as session_status FROM session_participants sp
             JOIN exam_sessions es ON sp.session_id = es.id
-            WHERE sp.user_id = $1 AND es.status = 'READY' AND sp.session_id != $2 AND (sp.register_status = 10 OR sp.register_status = 20)
+            WHERE sp.user_id = $1 AND es.status IN ('READY', 'ONGOING') AND sp.session_id != $2 AND (sp.register_status = 10 OR sp.register_status = 20)
           `,
           [uid, session_id],
         );
-        if (readyOtherSession.rows.length > 0) {
-          error = 'Học sinh đã đăng ký ca thi READY khác';
+        if (conflictingSession.rows.length > 0) {
+          error = 'Học sinh đã đăng ký ca thi chưa kết thúc khác';
         }
       }
       // Kiểm tra grade
@@ -130,12 +130,17 @@ exports.importSessionParticipants = async (req, res) => {
         let status = 'invalid';
         if (error === 'Username đã tồn tại') status = 'duplicate_username';
         else if (error === 'Email đã tồn tại') status = 'duplicate_email';
-        else if (error === 'Học sinh đã đăng ký ca thi READY khác') status = 'ready_other_session';
+        else if (error === 'Học sinh đã đăng ký ca thi chưa kết thúc khác') status = 'ready_other_session';
         else if (error === 'Khối của học sinh không khớp với ca thi') status = 'grade_mismatch';
         else if (error === 'Học sinh đã có trong ca thi này') status = 'exists';
         results.push({ username: user.username, status, error });
       }
     }
+    // Nếu yêu cầu dryRun (chỉ kiểm tra dữ liệu, không insert), trả về kết quả ngay
+    if (dryRun) {
+      return res.status(200).json(results.map((r, idx) => r || { username: users[idx].username, status: 'ok' }));
+    }
+
     // Nếu có lỗi và không cho phép skip, trả về luôn kết quả lỗi, không import gì
     if (!skipInvalid && results.some((r) => r !== null)) {
       // Trả về kết quả lỗi, các bản ghi hợp lệ là null
@@ -298,6 +303,18 @@ exports.register = async (req, res) => {
       const userGrade = userRes.rows[0].grade;
       if (!userGrade || !sessionGrade || String(userGrade) !== String(sessionGrade)) {
         results.push({ user_id: uid, status: 'grade_mismatch' });
+        continue;
+      }
+      // Kiểm tra học sinh đã có trong ca thi khác chưa mà chưa kết thúc (READY hoặc ONGOING)
+      const conflictRes = await db.query(
+        `SELECT sp.*, es.status as session_status FROM session_participants sp
+          JOIN exam_sessions es ON sp.session_id = es.id
+          WHERE sp.user_id = $1 AND es.status IN ('READY', 'ONGOING') AND sp.session_id != $2 AND (sp.register_status = 10 OR sp.register_status = 20)
+        `,
+        [uid, session_id],
+      );
+      if (conflictRes.rows.length > 0) {
+        results.push({ user_id: uid, status: 'ready_other_session' });
         continue;
       }
       // Kiểm tra đã đăng ký chưa

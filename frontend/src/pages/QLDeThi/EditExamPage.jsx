@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Form, Input, Button, Select, message, Spin, Card, Divider } from 'antd';
+import { DANGCAUHOI, QUESTION_LEVELS } from '../../constants/constant';
 import api from '../../services/api';
 import MathText from '../../utils/MathText';
 
@@ -84,6 +85,14 @@ const EditExamPage = () => {
       message.error('Không được để trống nội dung hoặc đáp án!');
       return;
     }
+    if (editQuestion.topic == null || editQuestion.topic === '') {
+      message.error('Vui lòng chọn dạng bài cho câu hỏi');
+      return;
+    }
+    if (editQuestion.level == null || String(editQuestion.level) === '') {
+      message.error('Vui lòng chọn độ khó cho câu hỏi');
+      return;
+    }
     // Kiểm tra trùng nội dung trong đề
     if (questions.some((q) => q.id !== editQuestion.id && q.content.trim() === editQuestion.content.trim())) {
       message.error('Nội dung câu hỏi bị trùng trong đề thi!');
@@ -159,6 +168,28 @@ const EditExamPage = () => {
                 autoSize={{ minRows: 2 }}
                 placeholder="Nội dung (có thể dùng LaTeX)"
               />
+              <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontWeight: 600 }}>Dạng bài</label>
+                  <Select
+                    style={{ width: '100%' }}
+                    options={DANGCAUHOI.filter((d) => Number(d.grade) === Number(exam.grade)).map((o) => ({ label: o.label, value: o.value }))}
+                    value={editQuestion.topic}
+                    onChange={(v) => handleQuestionChange('topic', v)}
+                    placeholder="Chọn dạng bài"
+                  />
+                </div>
+                <div style={{ width: 160 }}>
+                  <label style={{ fontWeight: 600 }}>Độ khó</label>
+                  <Select
+                    style={{ width: '100%' }}
+                    options={QUESTION_LEVELS.map((l) => ({ label: l.label, value: l.value }))}
+                    value={typeof editQuestion.level !== 'undefined' ? editQuestion.level : 0}
+                    onChange={(v) => handleQuestionChange('level', v)}
+                    placeholder="Chọn độ khó"
+                  />
+                </div>
+              </div>
               <div style={{ margin: '8px 0' }}>
                 <b>Xem trước:</b> <MathText>{editQuestion.content}</MathText>
               </div>
@@ -218,6 +249,14 @@ const EditExamPage = () => {
             <div>
               <div>
                 <MathText>{q.content}</MathText>
+              </div>
+              <div style={{ marginTop: 8, fontSize: 13, color: '#666' }}>
+                <span style={{ marginRight: 12 }}>
+                  <b>Dạng bài:</b> {DANGCAUHOI.find((o) => o.value === q.topic)?.label || q.topic || 'N/A'}
+                </span>
+                <span>
+                  <b>Độ khó:</b> {QUESTION_LEVELS.find((l) => String(l.value) === String(q.level))?.label || q.level}
+                </span>
               </div>
               <div style={{ marginLeft: 12 }}>
                 <div>

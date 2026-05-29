@@ -1,5 +1,5 @@
 class Question {
-  constructor({ id, teacher_id, content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, grade, created_at }) {
+  constructor({ id, teacher_id, content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, grade, topic, created_at }) {
     this.id = id;
     this.teacher_id = teacher_id;
     this.content = content;
@@ -11,6 +11,7 @@ class Question {
     this.explanation = explanation;
     this.level = level;
     this.grade = grade;
+    this.topic = topic;
     this.created_at = created_at;
   }
 

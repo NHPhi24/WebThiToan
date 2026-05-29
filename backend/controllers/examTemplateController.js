@@ -49,14 +49,46 @@ const getAllExamTemplates = async (req, res) => {
 };
 
 const createExamTemplate = async (req, res) => {
-  const { template_name, total_questions, basic_percent, advanced_percent, teacher_id, grade } = req.body;
+  const { template_name, total_questions, basic_percent, advanced_percent, teacher_id, grade, structure } = req.body;
 
   try {
+    // Validate structure if provided
+    if (structure && structure.mode === 'selection' && Array.isArray(structure.items)) {
+      const totalFromStructure = structure.items.reduce((sum, it) => {
+        const b = Number(it.basic || 0);
+        const a = Number(it.advanced || 0);
+        return sum + b + a;
+      }, 0);
+      if (totalFromStructure > Number(total_questions || 0)) {
+        return res.status(400).json({ error: 'Tổng số câu trong cấu trúc vượt quá `total_questions`' });
+      }
+      // Validate that each topic in structure exists for the selected grade or lower grades
+      const gradeNum = Number(grade);
+      let allowedGrades = [];
+      if (gradeNum === 10) allowedGrades = [10];
+      else if (gradeNum === 11) allowedGrades = [11, 10];
+      else if (gradeNum === 12) allowedGrades = [12, 11, 10];
+      else allowedGrades = [gradeNum];
+
+      for (const it of structure.items) {
+        if (it.topic) {
+          const topicCheck = await db.query('SELECT 1 FROM questions WHERE topic = $1 AND grade = ANY($2) LIMIT 1', [it.topic, allowedGrades]);
+          if (topicCheck.rowCount === 0) {
+            return res
+              .status(400)
+              .json({
+                error: `Dạng bài "${it.topic}" không có câu hỏi cho khối/lớp ${grade} hoặc các khối thấp hơn. Vui lòng chọn dạng bài phù hợp.`,
+              });
+          }
+        }
+      }
+    }
+
     const result = await db.query(
-      `INSERT INTO exam_templates (template_name, total_questions, basic_percent, advanced_percent, teacher_id, grade)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO exam_templates (template_name, total_questions, basic_percent, advanced_percent, teacher_id, grade, structure)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [template_name, total_questions || 50, basic_percent || 70, advanced_percent || 30, teacher_id, grade],
+      [template_name, total_questions || 50, basic_percent || 70, advanced_percent || 30, teacher_id, grade, structure || null],
     );
 
     await createAuditLog({
@@ -66,7 +98,7 @@ const createExamTemplate = async (req, res) => {
       resource_type: 'exam_template',
       resource_id: result.rows[0].id?.toString() || null,
       resource_name: result.rows[0].template_name,
-      details: { total_questions, basic_percent, advanced_percent, teacher_id, grade },
+      details: { total_questions, basic_percent, advanced_percent, teacher_id, grade, structure },
     });
 
     // Lấy lại bản ghi vừa tạo, join với users để trả về teacher_full_name
@@ -92,8 +124,39 @@ const createExamTemplate = async (req, res) => {
 
 const updateExamTemplate = async (req, res) => {
   const { id } = req.params;
-  const { template_name, total_questions, basic_percent, advanced_percent, teacher_id, grade } = req.body;
+  const { template_name, total_questions, basic_percent, advanced_percent, teacher_id, grade, structure } = req.body;
   try {
+    // Validate structure if provided (ensure not exceeding total)
+    if (structure && structure.mode === 'selection' && Array.isArray(structure.items)) {
+      const totalFromStructure = structure.items.reduce((sum, it) => {
+        const b = Number(it.basic || 0);
+        const a = Number(it.advanced || 0);
+        return sum + b + a;
+      }, 0);
+      if (totalFromStructure > Number(total_questions || 0)) {
+        return res.status(400).json({ error: 'Tổng số câu trong cấu trúc vượt quá `total_questions`' });
+      }
+      // Validate topics exist for the selected grade or lower grades
+      const gradeNum2 = Number(grade);
+      let allowedGrades2 = [];
+      if (gradeNum2 === 10) allowedGrades2 = [10];
+      else if (gradeNum2 === 11) allowedGrades2 = [11, 10];
+      else if (gradeNum2 === 12) allowedGrades2 = [12, 11, 10];
+      else allowedGrades2 = [gradeNum2];
+
+      for (const it of structure.items) {
+        if (it.topic) {
+          const topicCheck = await db.query('SELECT 1 FROM questions WHERE topic = $1 AND grade = ANY($2) LIMIT 1', [it.topic, allowedGrades2]);
+          if (topicCheck.rowCount === 0) {
+            return res
+              .status(400)
+              .json({
+                error: `Dạng bài "${it.topic}" không có câu hỏi cho khối/lớp ${grade} hoặc các khối thấp hơn. Vui lòng chọn dạng bài phù hợp.`,
+              });
+          }
+        }
+      }
+    }
     const result = await db.query(
       `UPDATE exam_templates
        SET template_name = $1,
@@ -101,10 +164,11 @@ const updateExamTemplate = async (req, res) => {
            basic_percent = $3,
            advanced_percent = $4,
            teacher_id = $5,
-           grade = $6
-       WHERE id = $7
+           grade = $6,
+           structure = $7
+       WHERE id = $8
        RETURNING *`,
-      [template_name, total_questions, basic_percent, advanced_percent, teacher_id, grade, id],
+      [template_name, total_questions, basic_percent, advanced_percent, teacher_id, grade, structure || null, id],
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Exam template not found' });

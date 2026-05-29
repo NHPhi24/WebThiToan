@@ -1,13 +1,14 @@
 import Filter from '../../components/Filter';
 import React, { useEffect, useState } from 'react';
 import useModal from '../../hooks/useModal';
-import { Table, Button, Tooltip, Space, Modal, message } from 'antd';
+import { Table, Button, Tooltip, Space, Modal, message, Tag } from 'antd';
 import SearchInput from '../../components/SearchInput';
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import OperationColumn from '../../components/ActionIcons';
 import apiService from '../../services/api';
 import AddQuestionModal from './AddQuestionModal';
 import ImportQuestionModal from './ImportQuestionModal';
+import { DANGCAUHOI } from '../../constants/constant';
 import 'katex/dist/katex.min.css';
 import MathText from '../../utils/MathText';
 import { Search } from 'lucide-react';
@@ -24,7 +25,7 @@ const QuestionBank = () => {
   const [showView, setShowView] = useState(false);
   const [viewData, setViewData] = useState(null);
   const [search, setSearch] = useState('');
-  const [filterValues, setFilterValues] = useState({ grade: 'ALL' });
+  const [filterValues, setFilterValues] = useState({ grade: 'ALL', level: 'ALL', topic: 'ALL' });
 
   // Hook modal import
   const importModal = useModal();
@@ -172,6 +173,16 @@ const QuestionBank = () => {
       render: (level) => <span>{String(level) === '1' ? 'Nâng cao' : 'Cơ bản'}</span>,
     },
     {
+      title: 'Dạng bài',
+      dataIndex: 'topic',
+      key: 'topic',
+      width: 200,
+      render: (topic) => {
+        const opt = DANGCAUHOI.find((o) => o.value === topic);
+        return <span>{opt ? opt.label : topic || 'N/A'}</span>;
+      },
+    },
+    {
       title: 'Người tạo',
       dataIndex: 'teacher_id',
       key: 'teacher_id',
@@ -211,6 +222,9 @@ const QuestionBank = () => {
     if (filterValues.level && filterValues.level !== 'ALL') {
       match = match && String(q.level) === String(filterValues.level);
     }
+    if (filterValues.topic && filterValues.topic !== 'ALL') {
+      match = match && String(q.topic) === String(filterValues.topic);
+    }
     return match;
   });
 
@@ -227,7 +241,7 @@ const QuestionBank = () => {
         <Button type="default" onClick={importModal.open}>
           Import
         </Button>
-        <Filter filterKeys={['grade', 'level']} onChange={(vals) => setFilterValues((prev) => ({ ...prev, ...vals }))} />
+        <Filter filterKeys={['grade', 'level', 'topic']} onChange={(vals) => setFilterValues((prev) => ({ ...prev, ...vals }))} />
         <SearchInput
           placeholder="Tìm kiếm theo nội dung câu hỏi..."
           value={search}
@@ -238,6 +252,7 @@ const QuestionBank = () => {
       <ImportQuestionModal
         visible={importModal.visible}
         onClose={importModal.close}
+        onImported={fetchQuestions}
         onImport={async (data, options = {}) => {
           // Nếu là dryRun, chỉ gửi lên BE để lấy mathStruct, không import thật
           if (options.dryRun) {
@@ -254,22 +269,7 @@ const QuestionBank = () => {
               return { mathStruct: [] };
             }
           }
-          // Import thật
-          const results = [];
-          for (const q of data) {
-            try {
-              await apiService.createQuestion(q);
-              results.push({ ...q, status: 'created' });
-            } catch (err) {
-              let errorMsg = err?.response?.data?.error || err?.message || 'Lỗi';
-              results.push({ ...q, status: 'error', error: errorMsg });
-            }
-          }
-          message.success(
-            `Import thành công: ${results.filter((r) => r.status === 'created').length}, thất bại: ${results.filter((r) => r.status !== 'created').length}`,
-          );
-          fetchQuestions();
-          return results;
+          return undefined;
         }}
       />
       {/* <Table columns={columns} dataSource={filteredQuestions} rowKey="id" loading={loading} bordered scroll={{ x: 'max-content' }} /> */}

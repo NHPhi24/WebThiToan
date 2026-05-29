@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Row, Col } from 'antd';
 import CommonSelectFilter from './CommonSelectFilter';
+import { DANGCAUHOI } from '../constants/constant';
 
 // Cấu hình các filter động
 const FILTER_CONFIG = {
@@ -37,6 +38,15 @@ const FILTER_CONFIG = {
       { value: '1', label: 'Nâng cao' },
     ],
   },
+  topic: {
+    label: 'Dạng bài',
+    // options depend on selected grade; use a function to compute options from current values
+    options: (values = {}) => {
+      const grade = values.grade;
+      const items = DANGCAUHOI.filter((d) => !grade || grade === 'ALL' || Number(d.grade) === Number(grade));
+      return [{ value: 'ALL', label: 'Tất cả dạng bài' }, ...items.map((d) => ({ value: d.value, label: d.label }))];
+    },
+  },
   // Thêm các filter khác nếu cần
 };
 
@@ -50,6 +60,10 @@ const Filter = ({ filterKeys = [], onChange }) => {
 
   const handleChange = (key, value) => {
     const newValues = { ...values, [key]: value };
+    // If grade changes, reset topic to ALL to avoid mismatched topic
+    if (key === 'grade') {
+      newValues.topic = 'ALL';
+    }
     setValues(newValues);
     onChange && onChange(newValues);
   };
@@ -59,12 +73,13 @@ const Filter = ({ filterKeys = [], onChange }) => {
       {filterKeys.map((key) => {
         const config = FILTER_CONFIG[key];
         if (!config) return null;
+        const options = typeof config.options === 'function' ? config.options(values) : config.options;
         return (
           <Col key={key}>
             <CommonSelectFilter
               value={values[key]}
               onChange={(val) => handleChange(key, val)}
-              options={config.options}
+              options={options}
               selectProps={{ placeholder: config.label }}
             />
           </Col>

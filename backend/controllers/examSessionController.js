@@ -334,6 +334,14 @@ const updateExamSessionStatus = async (req, res) => {
       return res.status(404).json({ error: 'Exam session not found' });
     }
     const session = sessionRes.rows[0];
+    // Kiểm tra quyền: chỉ người tạo (teacher_id) được đổi trạng thái
+    const actor_id = req.body.actor_id || null;
+    if (!actor_id) {
+      return res.status(403).json({ error: 'Thiếu actor_id để xác thực quyền' });
+    }
+    if (String(actor_id) !== String(session.teacher_id)) {
+      return res.status(403).json({ error: 'Chỉ người tạo ca thi mới được đổi trạng thái' });
+    }
     // Nếu đổi về READY mà đã quá thời gian bắt đầu thì báo lỗi
     if ((status === 'READY' || !status) && session.start_time) {
       const now = Date.now();

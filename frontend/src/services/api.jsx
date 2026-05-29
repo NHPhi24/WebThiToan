@@ -19,6 +19,7 @@ const api = {
   // ngân hàng câu hỏi
   getAllQuestions: () => axiosClient.get('/questions'),
   getQuestionById: (id) => axiosClient.get(`/questions/${id}`),
+  checkQuestionSimilarity: (content) => axiosClient.post('/questions/check-similarity', { content }),
   createQuestion: (data) => axiosClient.post('/questions', data).then((res) => res.data),
   updateQuestion: (id, data) => axiosClient.put(`/questions/${id}`, data).then((res) => res.data),
   deleteQuestion: (id) => axiosClient.delete(`/questions/${id}`),
@@ -46,7 +47,8 @@ const api = {
   getReadyExamSessions: () => axiosClient.get('/exam-sessions/ready'),
   getOngoingApprovedExamSessions: (user_id) => axiosClient.get(`/exam-sessions/ongoing/approved?user_id=${user_id}`),
   // Import học sinh vào ca thi
-  importSessionParticipants: ({ session_id, users }) => axiosClient.post('/session-participants/import', { session_id, users }),
+  importSessionParticipants: ({ session_id, users, skipInvalid, dryRun }) =>
+    axiosClient.post('/session-participants/import', { session_id, users, skipInvalid, dryRun }),
   startExamSession: (sessionId) => axiosClient.post(`/exam-sessions/${sessionId}/start`),
   // đăng kỳ tham thi
   getAllSessionParticipants: () => axiosClient.get('/session-participants'),

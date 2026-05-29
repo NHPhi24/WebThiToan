@@ -24,10 +24,15 @@ const migrations = [
   { table: 'exam_results', column: 'violation_logs', type: "JSONB DEFAULT '[]'" },
   // migration cáu trúc đề thi
   { table: 'exam_templates', column: 'grade', type: 'INTEGER CHECK (grade IN (10, 11, 12))' },
+  // migration: thêm structure JSONB cho exam_templates
+  { table: 'exam_templates', column: 'structure', type: "JSONB DEFAULT '[]'" },
   // migration đề thi
   { table: 'exams', column: 'grade', type: 'INTEGER CHECK (grade IN (10, 11, 12))' },
   // migration câu hỏi
   { table: 'questions', column: 'grade', type: 'INTEGER CHECK (grade IN (10, 11, 12))' },
+  // migration: thêm topic và tags cho questions
+  { table: 'questions', column: 'topic', type: 'VARCHAR(100)' },
+  // tags removed: no migration entry for tags anymore
   // migration người dùng
   { table: 'users', column: 'grade', type: 'INTEGER CHECK (grade IN (10, 11, 12))' },
 ];

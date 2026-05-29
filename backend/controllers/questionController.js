@@ -116,6 +116,7 @@ async function analyzeQuestionSimilarity(newQuestion, existingQuestions) {
         decision: 'reject',
         reason: 'Exact match after normalization',
         matched_question_id: q.id,
+        matched_question_content: q.content,
       };
       return bestResult;
     }
@@ -158,16 +159,16 @@ async function analyzeQuestionSimilarity(newQuestion, existingQuestions) {
     // Quyết định duy nhất, không chồng lấn
     if (latexSim === 100 && change_type === 'none') {
       decision = 'reject';
-      reason = 'Template and parameters match exactly';
+      reason = 'Câu hỏi này trùng hoàn toàn với câu hỏi đã có trong ngân hàng.';
     } else if (change_type === 'parameter_only') {
       decision = 'warning';
       // reason = 'Câu hỏi này chỉ khác biến hoặc số so với câu hỏi đã có trong ngân hàng. Bạn có chắc chắn muốn thêm/sửa không?';
     } else if (semanticSim >= 90 && conceptNew === conceptQ) {
       decision = 'warning';
-      reason = 'High semantic similarity and same concept';
+      reason = 'Câu hỏi đã tương đồng với câu hỏi khác trong ngân hàng câu hỏi';
     } else {
       decision = 'allow';
-      reason = 'Different concept or low similarity';
+      reason = 'Câu hỏi có khái niệm khác hoặc độ tương đồng thấp';
     }
 
     // Ưu tiên reject > warning > allow
@@ -182,6 +183,7 @@ async function analyzeQuestionSimilarity(newQuestion, existingQuestions) {
         decision,
         reason,
         matched_question_id: q.id,
+        matched_question_content: q.content,
       };
       if (decision === 'reject') return bestResult;
     }
@@ -198,6 +200,7 @@ async function analyzeQuestionSimilarity(newQuestion, existingQuestions) {
       decision: 'allow',
       reason: 'No significant match',
       matched_question_id: null,
+      matched_question_content: null,
     };
   }
   return bestResult;
@@ -273,13 +276,13 @@ async function checkSimilarQuestions(content, excludeId = null) {
 }
 
 const createQuestion = async (req, res) => {
-  const { id, teacher_id, content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, grade } = req.body;
+  const { id, teacher_id, content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, grade, topic } = req.body;
   try {
     if (id) {
       // Nếu có id, cập nhật
       const result = await db.query(
-        `UPDATE questions SET teacher_id=$1, content=$2, ans_a=$3, ans_b=$4, ans_c=$5, ans_d=$6, correct_ans=$7, explanation=$8, level=$9, grade=$10 WHERE id=$11 RETURNING *`,
-        [teacher_id, content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, grade, id],
+        `UPDATE questions SET teacher_id=$1, content=$2, ans_a=$3, ans_b=$4, ans_c=$5, ans_d=$6, correct_ans=$7, explanation=$8, level=$9, grade=$10, topic=$11 WHERE id=$12 RETURNING *`,
+        [teacher_id, content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, grade, topic || null, id],
       );
       if (result.rows.length === 0) return res.status(404).json({ error: 'Question not found' });
       await createAuditLog({
@@ -304,18 +307,16 @@ const createQuestion = async (req, res) => {
           similarity: simResult,
         });
       }
-      if (simResult.decision === 'warning') {
-        // Làm sạch nội dung header: chỉ giữ ký tự ASCII printable, cắt tối đa 200 ký tự
-        let warningMsg = simResult.reason || 'Câu hỏi tương đồng dạng bài với câu hỏi khác.';
-        warningMsg = warningMsg.replace(/[^\x20-\x7E]+/g, ' ').slice(0, 200);
-        res.set('X-Warning', warningMsg);
+      // Nếu cảnh báo và không có flag force, trả về similarity nhưng KHÔNG insert (dry-run)
+      if (simResult.decision === 'warning' && !req.body.force) {
+        return res.status(200).json({ similarity: simResult });
       }
-      // Cho phép thêm nếu allow hoặc warning
+      // Nếu allow hoặc force===true, tiến hành insert
       const result = await db.query(
-        `INSERT INTO questions (teacher_id, content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, grade)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        `INSERT INTO questions (teacher_id, content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, grade, topic)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
          RETURNING *`,
-        [teacher_id, content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, grade],
+        [teacher_id, content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, grade, topic || null],
       );
       await createAuditLog({
         actor_id: req.body.actor_id || teacher_id || null,
@@ -357,7 +358,7 @@ const getQuestionById = async (req, res) => {
 
 const updateQuestion = async (req, res) => {
   const { id } = req.params;
-  const { teacher_id, content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, grade } = req.body;
+  const { teacher_id, content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, grade, topic } = req.body;
   try {
     // Lấy toàn bộ câu hỏi trừ chính nó để kiểm tra tương đồng nâng cao
     const allQuestions = await db.query('SELECT * FROM questions WHERE id != $1', [id]);
@@ -376,8 +377,8 @@ const updateQuestion = async (req, res) => {
     }
     // Cho phép update nếu allow hoặc warning
     const result = await db.query(
-      `UPDATE questions SET teacher_id=$1, content=$2, ans_a=$3, ans_b=$4, ans_c=$5, ans_d=$6, correct_ans=$7, explanation=$8, level=$9, grade=$10 WHERE id=$11 RETURNING *`,
-      [teacher_id, content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, grade, id],
+      `UPDATE questions SET teacher_id=$1, content=$2, ans_a=$3, ans_b=$4, ans_c=$5, ans_d=$6, correct_ans=$7, explanation=$8, level=$9, grade=$10, topic=$11 WHERE id=$12 RETURNING *`,
+      [teacher_id, content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, grade, topic || null, id],
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Question not found' });
@@ -439,15 +440,15 @@ const importQuestionsFromExcel = async (req, res) => {
     const skipped = [];
     const mathStruct = [];
     for (const row of rows) {
-      const { teacher_id, content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, grade } = row;
+      const { teacher_id, content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, grade, topic } = row;
       if (!teacher_id || !content || !ans_a || !ans_b || !ans_c || !ans_d || !correct_ans || !level) continue;
       const check = await checkSimilarQuestions(content);
       if (check.type === 'exact') {
         // Nếu chỉ khác năm, ghi đè
         const oldId = check.question.id;
         const result = await db.query(
-          `UPDATE questions SET teacher_id=$1, content=$2, ans_a=$3, ans_b=$4, ans_c=$5, ans_d=$6, correct_ans=$7, explanation=$8, level=$9, grade=$10 WHERE id=$11 RETURNING *`,
-          [teacher_id, content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, grade, oldId],
+          `UPDATE questions SET teacher_id=$1, content=$2, ans_a=$3, ans_b=$4, ans_c=$5, ans_d=$6, correct_ans=$7, explanation=$8, level=$9, grade=$10, topic=$11 WHERE id=$12 RETURNING *`,
+          [teacher_id, content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, grade, topic || null, oldId],
         );
         inserted.push(result.rows[0]);
       } else if (check.type === 'similar') {
@@ -464,10 +465,10 @@ const importQuestionsFromExcel = async (req, res) => {
         continue;
       } else {
         const result = await db.query(
-          `INSERT INTO questions (teacher_id, content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, grade)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+          `INSERT INTO questions (teacher_id, content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, grade, topic)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
            RETURNING *`,
-          [teacher_id, content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, grade],
+          [teacher_id, content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, grade, topic || null],
         );
         inserted.push(result.rows[0]);
       }
@@ -479,6 +480,20 @@ const importQuestionsFromExcel = async (req, res) => {
   }
 };
 
+// Kiểm tra tương đồng cho một câu hỏi (dry-run) — trả về đối tượng similarity mà không insert
+const checkSimilarity = async (req, res) => {
+  try {
+    const { content, excludeId } = req.body;
+    if (!content) return res.status(400).json({ error: 'Missing content' });
+    const allQuestions = await db.query('SELECT * FROM questions');
+    const simResult = await analyzeQuestionSimilarity({ content }, allQuestions.rows);
+    return res.json(simResult);
+  } catch (err) {
+    console.error('checkSimilarity error:', err);
+    res.status(500).json({ error: 'Failed to check similarity' });
+  }
+};
+
 module.exports = {
   getAllQuestions,
   createQuestion,
@@ -486,6 +501,7 @@ module.exports = {
   deleteQuestion,
   importQuestionsFromExcel,
   getQuestionById,
+  checkSimilarity,
 };
 
 // Nhập hàng loạt câu hỏi từ Excel
@@ -507,7 +523,7 @@ module.exports.importQuestionsFromExcel = async (req, res) => {
       const { content } = row;
       if (!content) continue;
       const similars = await checkSimilarQuestions(content);
-      if (similars.length > 0) duplicateCount++;
+      if (similars && similars.type && similars.type !== 'none') duplicateCount++;
     }
     const percent = (duplicateCount / rows.length) * 100;
     let warning = null;
@@ -517,24 +533,24 @@ module.exports.importQuestionsFromExcel = async (req, res) => {
 
     // Luôn tiến hành import từng phần
     for (const row of rows) {
-      const { content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, grade } = row;
+      const { content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, grade, topic } = row;
       // BỎ kiểm tra thiếu trường bắt buộc, vẫn cho phép import dòng thiếu trường
       const similars = await checkSimilarQuestions(content);
-      if (similars.length === 1) {
+      if (similars && similars.type === 'exact') {
         // Nếu chỉ khác năm, ghi đè
-        const oldId = similars[0].id;
+        const oldId = similars.question.id;
         const result = await db.query(
-          `UPDATE questions SET content=$1, ans_a=$2, ans_b=$3, ans_c=$4, ans_d=$5, correct_ans=$6, explanation=$7, level=$8, grade=$9 WHERE id=$10 RETURNING *`,
-          [content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, grade, oldId],
+          `UPDATE questions SET content=$1, ans_a=$2, ans_b=$3, ans_c=$4, ans_d=$5, correct_ans=$6, explanation=$7, level=$8, grade=$9, topic=$10 WHERE id=$11 RETURNING *`,
+          [content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, grade, topic || null, oldId],
         );
         inserted.push(result.rows[0]);
-      } else if (similars.length === 2) {
+      } else if (similars && similars.type === 'similar') {
         skipped.push({
           content,
           reason: 'Đã có 2 câu hỏi tương đồng nội dung này!',
         });
         continue;
-      } else if (similars.length > 2) {
+      } else if (similars && similars.type && similars.type !== 'none') {
         skipped.push({
           content,
           reason: 'Câu hỏi này đã tồn tại nhiều bản tương đồng!',
@@ -542,10 +558,10 @@ module.exports.importQuestionsFromExcel = async (req, res) => {
         continue;
       } else {
         const result = await db.query(
-          `INSERT INTO questions (content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, grade)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          `INSERT INTO questions (content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, grade, topic)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
            RETURNING *`,
-          [content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, grade],
+          [content, ans_a, ans_b, ans_c, ans_d, correct_ans, explanation, level, grade, topic || null],
         );
         inserted.push(result.rows[0]);
       }
@@ -565,7 +581,7 @@ module.exports.importQuestionsFromExcel = async (req, res) => {
 // Xuất file mẫu Excel để nhập hàng loạt
 module.exports.exportQuestionsTemplate = (req, res) => {
   try {
-    const headers = ['content', 'ans_a', 'ans_b', 'ans_c', 'ans_d', 'correct_ans', 'explanation', 'level', 'grade'];
+    const headers = ['content', 'ans_a', 'ans_b', 'ans_c', 'ans_d', 'correct_ans', 'explanation', 'level', 'grade', 'topic'];
     const ws = xlsx.utils.aoa_to_sheet([headers]);
     const wb = xlsx.utils.book_new();
     xlsx.utils.book_append_sheet(wb, ws, 'QuestionsTemplate');

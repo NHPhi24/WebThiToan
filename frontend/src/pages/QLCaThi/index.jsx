@@ -144,11 +144,12 @@ const QLCaThi = ({ user, isLoggedIn }) => {
   const handleStatusChange = async (id, status) => {
     try {
       const currentUser = getCurrentUser();
+      if (!currentUser) return message.error('Bạn cần đăng nhập');
       await apiService.updateExamSessionStatus(id, status, currentUser?.id);
       message.success('Đã đổi trạng thái');
       fetchData();
-    } catch {
-      message.error('Đổi trạng thái thất bại');
+    } catch (err) {
+      message.error(err?.response?.data?.error || 'Đổi trạng thái thất bại');
     }
   };
 
@@ -275,8 +276,10 @@ const QLCaThi = ({ user, isLoggedIn }) => {
       title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
-      render: (status, record) =>
-        canEdit ? (
+      render: (status, record) => {
+        const curr = getCurrentUser();
+        const canChangeStatus = curr && String(curr.id) === String(record.teacher_id);
+        return canChangeStatus ? (
           <Select
             value={status}
             style={{ minWidth: 120 }}
@@ -292,7 +295,8 @@ const QLCaThi = ({ user, isLoggedIn }) => {
           </Select>
         ) : (
           <span>{getStatusLabel(status)}</span>
-        ),
+        );
+      },
     },
     {
       title: 'Ngày tạo',

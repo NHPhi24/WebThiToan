@@ -10,7 +10,7 @@ const VoHieu = ({ onViPham }) => {
     };
     const handleVisibility = () => {
       if (document.visibilityState !== 'visible') {
-        message.warning('Bạn không được phép chuyển tab hoặc cửa sổ trong khi làm bài!');
+        // message.warning('Bạn không được phép chuyển tab hoặc cửa sổ trong khi làm bài!');
         if (typeof onViPham === 'function') onViPham();
       }
     };
