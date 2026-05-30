@@ -139,13 +139,29 @@ const ThucHienBaiThi = ({ setSidebarCollapsed }) => {
           try {
             // Gọi lại startExamSession để lấy lại thứ tự random câu hỏi/đáp án đúng với lần đầu
             const examRes = await api.startExamSession(sessionId);
-            setQuestions(examRes.data.questions || []);
+            const qs = examRes.data.questions || [];
+            setQuestions(qs);
             setExamCode(examRes.data.exam_code);
+            // Nếu BE lưu answers_log là dạng text (nội dung đáp án), chuyển về key (A/B/C/D)
+            try {
+              const answersLog = existedResult.answers_log || {};
+              const keyAnswers = {};
+              qs.forEach((q) => {
+                const savedText = answersLog[q.id] || answersLog[String(q.id)];
+                if (!savedText) return;
+                if (savedText === q.ans_a) keyAnswers[q.id] = 'A';
+                else if (savedText === q.ans_b) keyAnswers[q.id] = 'B';
+                else if (savedText === q.ans_c) keyAnswers[q.id] = 'C';
+                else if (savedText === q.ans_d) keyAnswers[q.id] = 'D';
+              });
+              setAnswers(keyAnswers);
+            } catch (err) {
+              setAnswers(existedResult.answers_log || {});
+            }
           } catch {
             setQuestions([]);
             setExamCode('');
           }
-          setAnswers(existedResult.answers_log || {});
           setCurrent(0);
         } else {
           // Chưa có: lấy đề và random từ BE, tạo bản ghi mới

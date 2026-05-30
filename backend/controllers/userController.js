@@ -333,7 +333,7 @@ const loginUser = async (req, res) => {
       [username, password],
     );
     if (result.rowCount === 0) {
-      return res.status(401).json({ error: 'Invalid username or password' });
+      return res.status(401).json({ error: 'sai tài khoản hoặc mật khẩu' });
     }
     const user = result.rows[0];
     // Tạo JWT token, chỉ có hiệu lực trong 2 giờ

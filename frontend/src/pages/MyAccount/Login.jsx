@@ -35,10 +35,11 @@ const Login = ({ setIsLoggedIn, setUser }) => {
         message.error('Tên đăng nhập hoặc mật khẩu không đúng');
       }
     } catch (error) {
+      const serverMessage = error?.response?.data?.error;
       if (error?.response?.status === 401) {
-        message.error('Tên đăng nhập hoặc mật khẩu không đúng');
+        message.error(serverMessage || 'Tên đăng nhập hoặc mật khẩu không đúng');
       } else {
-        message.error('Đã xảy ra lỗi khi đăng nhập');
+        message.error(serverMessage || 'Đã xảy ra lỗi khi đăng nhập');
       }
     } finally {
       setLoading(false);

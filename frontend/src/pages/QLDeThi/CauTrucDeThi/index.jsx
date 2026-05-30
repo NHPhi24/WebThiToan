@@ -103,6 +103,7 @@ const CauTruDeThi = () => {
       title: 'Hành động',
       key: 'actions',
       width: 180,
+      fixed: 'right',
       render: (_, record) => (
         <OperationColumn handleView={() => handleView(record)} handleEdit={() => handleEdit(record)} handleDelete={() => handleDelete(record)} />
       ),

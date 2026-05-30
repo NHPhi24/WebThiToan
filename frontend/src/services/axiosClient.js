@@ -21,8 +21,12 @@ axiosClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('user');
-      window.location.href = '/dang-nhap';
+      const requestUrl = error.config?.url || '';
+      // Nếu là request đăng nhập thì không redirect để component xử lý và hiển thị thông báo
+      if (!requestUrl.includes('/users/login')) {
+        localStorage.removeItem('user');
+        window.location.href = '/dang-nhap';
+      }
     }
     return Promise.reject(error);
   },
