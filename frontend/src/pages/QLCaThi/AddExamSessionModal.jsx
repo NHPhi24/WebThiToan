@@ -56,6 +56,7 @@ const AddExamSessionModal = ({ open, onCancel, onOk, loading, user, editData }) 
           start_time: dayjs(editData.start_time),
           exam_ids: editData.exam_ids || [],
           lock_duration_seconds: editData.lock_duration_seconds ?? 120,
+          max_participants: editData.max_participants ?? 40,
         });
       } else if (!isEdit && user) {
         grade = form.getFieldValue('grade');
@@ -64,6 +65,7 @@ const AddExamSessionModal = ({ open, onCancel, onOk, loading, user, editData }) 
           teacher_id: user.id,
           start_time: defaultStart,
           lock_duration_seconds: 120,
+          max_participants: 40,
         });
       }
       filterExamsByGrade(grade);
@@ -83,6 +85,7 @@ const AddExamSessionModal = ({ open, onCancel, onOk, loading, user, editData }) 
         ...values,
         start_time: values.start_time.toISOString(),
         lock_duration_seconds: values.lock_duration_seconds ?? 120,
+        max_participants: values.max_participants ?? 40,
       });
       form.resetFields();
     } catch (err) {
@@ -137,7 +140,8 @@ const AddExamSessionModal = ({ open, onCancel, onOk, loading, user, editData }) 
             showSearch
             filterOption={(input, option) => option.label.toLowerCase().includes(input.toLowerCase())}
             placeholder="Chọn trạng thái"
-            disabled={!isEdit} // Disable khi thêm mới, chỉ cho phép chỉnh khi sửa
+            // Disable khi thêm mới, chỉ cho phép chỉnh khi sửa. Nếu ca thi đang diễn ra thì không cho chỉnh trạng thái.
+            disabled={!isEdit || (isEdit && editData && editData.status === 'ONGOING')}
           />
         </Form.Item>
         <Form.Item label="Giáo viên tạo">
@@ -165,7 +169,7 @@ const AddExamSessionModal = ({ open, onCancel, onOk, loading, user, editData }) 
           name="max_participants"
           rules={[{ required: false, type: 'number', min: 1, message: 'Nhập số lượng tối đa hoặc để trống' }]}
         >
-          <InputNumber min={1} max={40} style={{ width: '100%' }} placeholder="Không giới hạn nếu để trống" />
+          <InputNumber min={1} max={40} style={{ width: '100%' }} placeholder="Tối đa 40 (mặc định 40 nếu để trống)" />
         </Form.Item>
         <Form.Item label="Chọn đề thi" name="exam_ids" rules={[{ required: true, message: 'Chọn ít nhất 1 đề thi' }]}>
           <Select

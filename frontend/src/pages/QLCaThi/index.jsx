@@ -284,6 +284,8 @@ const QLCaThi = ({ user, isLoggedIn }) => {
             value={status}
             style={{ minWidth: 120 }}
             onChange={(val) => handleStatusChange(record.id, val)}
+            // Nếu ca thi đang diễn ra thì không cho đổi trạng thái
+            disabled={record.status === 'ONGOING'}
             options={statusOptions}
             optionLabelProp="label"
           >

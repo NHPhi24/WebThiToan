@@ -245,34 +245,122 @@ const createExamResult = async (req, res) => {
   }
 };
 
-// Nộp tự động: cập nhật bài thi nếu chưa nộp
+// Nộp tự động: tạo hoặc cập nhật kết quả và luôn nộp (tạo mới nếu chưa có)
 const autoSubmitExamResult = async (req, res) => {
-  const { student_id, exam_id, session_id, duration_seconds } = req.body;
+  const { student_id, exam_id, session_id, duration_seconds, answers_log } = req.body;
   try {
-    // Tìm bài thi chưa nộp
-    const result = await db.query(`SELECT * FROM exam_results WHERE student_id=$1 AND exam_id=$2 AND session_id=$3 AND is_submitted=false LIMIT 1`, [
+    // Tìm bản ghi tồn tại (bất kể is_submitted) theo student+exam+session
+    const existingRes = await db.query(`SELECT * FROM exam_results WHERE student_id=$1 AND exam_id=$2 AND session_id=$3 LIMIT 1`, [
       student_id,
       exam_id,
       session_id,
     ]);
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Không tìm thấy bài thi chưa nộp hoặc đã nộp rồi.' });
+
+    if (existingRes.rows.length > 0) {
+      const existing = existingRes.rows[0];
+      // Nếu đã nộp thì trả về conflict
+      if (existing.is_submitted) {
+        return res.status(409).json({ error: 'Bài thi đã nộp rồi.' });
+      }
+      // Nếu chưa nộp: cập nhật is_submitted và thời gian; nếu FE gửi answers_log thì cập nhật luôn
+      if (answers_log) {
+        const updated = await db.query(
+          `UPDATE exam_results SET is_submitted=true, submitted_at=$1, duration_seconds=$2, answers_log=$3, score=$4 WHERE id=$5 RETURNING *`,
+          [new Date().toISOString(), duration_seconds || 0, JSON.stringify(answers_log), existing.score || 0, existing.id],
+        );
+        await createAuditLog({
+          actor_id: student_id,
+          action: 'AUTO_SUBMIT',
+          resource_type: 'exam_result',
+          resource_id: existing.id?.toString() || null,
+          resource_name: String(existing.exam_id),
+          details: { student_id, exam_id, session_id, auto: true, duration_seconds },
+        });
+        return res.json(ExamResult.fromRow(updated.rows[0]));
+      }
+
+      const updated = await db.query(`UPDATE exam_results SET is_submitted=true, submitted_at=$1, duration_seconds=$2 WHERE id=$3 RETURNING *`, [
+        new Date().toISOString(),
+        duration_seconds || 0,
+        existing.id,
+      ]);
+      await createAuditLog({
+        actor_id: student_id,
+        action: 'AUTO_SUBMIT',
+        resource_type: 'exam_result',
+        resource_id: existing.id?.toString() || null,
+        resource_name: String(existing.exam_id),
+        details: { student_id, exam_id, session_id, auto: true, duration_seconds },
+      });
+      return res.json(ExamResult.fromRow(updated.rows[0]));
     }
-    // Cập nhật trạng thái nộp tự động và thời gian làm bài
-    const updated = await db.query(`UPDATE exam_results SET is_submitted=true, submitted_at=$1, duration_seconds=$2 WHERE id=$3 RETURNING *`, [
-      new Date().toISOString(),
-      duration_seconds || 0,
-      result.rows[0].id,
-    ]);
+
+    // Nếu không có bản ghi: lấy danh sách câu hỏi của đề để chấm (nếu có)
+    const questionsRes = await db.query(
+      `SELECT q.id, q.ans_a, q.ans_b, q.ans_c, q.ans_d, q.correct_ans
+       FROM exam_questions eq JOIN questions q ON eq.question_id = q.id
+       WHERE eq.exam_id = $1
+       ORDER BY eq.order_index ASC`,
+      [exam_id],
+    );
+    const questions = questionsRes.rows || [];
+
+    // Chuẩn hoá answers_log giống createExamResult; nếu không có thì tạo rỗng
+    let orderedAnswers;
+    if (answers_log && typeof answers_log === 'object') {
+      orderedAnswers = questions.map((q) => {
+        let answer = '';
+        if (answers_log[q.id] !== undefined) {
+          const val = answers_log[q.id];
+          if ([q.ans_a, q.ans_b, q.ans_c, q.ans_d].includes(val)) answer = val;
+          else if (val === 'A') answer = q.ans_a;
+          else if (val === 'B') answer = q.ans_b;
+          else if (val === 'C') answer = q.ans_c;
+          else if (val === 'D') answer = q.ans_d;
+          else answer = val;
+        }
+        return { question_id: q.id, answer };
+      });
+    } else {
+      orderedAnswers = questions.map((q) => ({ question_id: q.id, answer: '' }));
+    }
+
+    // Chấm điểm (sao chép logic từ createExamResult)
+    let correct = 0;
+    const total = questions.length;
+    for (let i = 0; i < questions.length; i++) {
+      const q = questions[i];
+      const userAns = orderedAnswers[i].answer;
+      let correctText = '';
+      if (['A', 'B', 'C', 'D'].includes((q.correct_ans || '').trim())) {
+        if (q.correct_ans === 'A') correctText = q.ans_a;
+        else if (q.correct_ans === 'B') correctText = q.ans_b;
+        else if (q.correct_ans === 'C') correctText = q.ans_c;
+        else if (q.correct_ans === 'D') correctText = q.ans_d;
+      } else {
+        correctText = q.correct_ans;
+      }
+      if (typeof userAns === 'string' && userAns.trim().replace(/\s+/g, ' ') === String(correctText).trim().replace(/\s+/g, ' ')) correct++;
+    }
+    const score = total > 0 ? Math.round((correct / total) * 10 * 100) / 100 : 0;
+
+    // Tạo bản ghi mới với is_submitted = true
+    const inserted = await db.query(
+      `INSERT INTO exam_results (student_id, exam_id, session_id, score, answers_log, is_submitted, submitted_at, duration_seconds)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [student_id, exam_id, session_id, score, JSON.stringify(orderedAnswers), true, new Date().toISOString(), duration_seconds || 0],
+    );
+
     await createAuditLog({
       actor_id: student_id,
-      action: 'AUTO_SUBMIT',
+      action: 'AUTO_SUBMIT_CREATE',
       resource_type: 'exam_result',
-      resource_id: result.rows[0].id?.toString() || null,
-      resource_name: result.rows[0].exam_id?.toString(),
+      resource_id: inserted.rows[0].id?.toString() || null,
+      resource_name: String(exam_id),
       details: { student_id, exam_id, session_id, auto: true, duration_seconds },
     });
-    res.json(ExamResult.fromRow(updated.rows[0]));
+
+    res.status(201).json(ExamResult.fromRow(inserted.rows[0]));
   } catch (error) {
     console.error('autoSubmitExamResult error:', error);
     res.status(500).json({ error: 'Failed to auto submit exam result' });

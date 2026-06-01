@@ -342,6 +342,11 @@ const updateExamSessionStatus = async (req, res) => {
     if (String(actor_id) !== String(session.teacher_id)) {
       return res.status(403).json({ error: 'Chỉ người tạo ca thi mới được đổi trạng thái' });
     }
+    // Nếu ca thi đang diễn ra thì không cho đổi trạng thái
+    const currentStatus = getSessionStatus(session);
+    if (currentStatus === 'ONGOING') {
+      return res.status(400).json({ error: 'Không thể đổi trạng thái khi ca thi đang diễn ra' });
+    }
     // Nếu đổi về READY mà đã quá thời gian bắt đầu thì báo lỗi
     if ((status === 'READY' || !status) && session.start_time) {
       const now = Date.now();

@@ -44,7 +44,24 @@ const LamBaiThi = ({ setSidebarCollapsed }) => {
     try {
       // Sử dụng API mới để lấy trạng thái đăng ký
       const res = await api.getOngoingExamSessionsWithRegisterStatus(user.id);
-      setSessions(res.data);
+      // Đưa các ca mà học sinh được phép bắt đầu (có đề, đã được duyệt, chưa nộp) lên đầu
+      const data = Array.isArray(res.data) ? res.data : [];
+      const isStartable = (s) => {
+        try {
+          const hasExam = s.exam_ids && s.exam_ids.length > 0;
+          const approved = s.register_status === 20;
+          const notSubmitted = !s.has_submitted && !submittedSessionIds.includes(s.id);
+          return hasExam && approved && notSubmitted;
+        } catch {
+          return false;
+        }
+      };
+      const sorted = data.slice().sort((a, b) => {
+        const aStart = isStartable(a) ? 0 : 1;
+        const bStart = isStartable(b) ? 0 : 1;
+        return aStart - bStart;
+      });
+      setSessions(sorted);
     } catch (error) {
       message.error('Không thể tải danh sách ca thi');
     } finally {
