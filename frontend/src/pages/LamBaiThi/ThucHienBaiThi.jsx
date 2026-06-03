@@ -71,6 +71,9 @@ const ThucHienBaiThi = ({ setSidebarCollapsed }) => {
   // Guard biến để debounce log vi phạm
   const [isViolationPending, setIsViolationPending] = useState(false);
   const handleViPham = () => {
+    // Nếu bài thi đang trong trạng thái bị khóa thì không ghi nhận thêm vi phạm và log
+    if (locked) return;
+
     if (isViolationPending) return;
     setIsViolationPending(true);
     setTimeout(() => setIsViolationPending(false), 1000); // 1s debounce
@@ -86,8 +89,6 @@ const ThucHienBaiThi = ({ setSidebarCollapsed }) => {
         .catch(() => {});
     }
     setViPhamCount((prev) => {
-      // Nếu đã locked thì không tăng tiếp và không nộp bài tự động nữa
-      if (locked) return prev;
       const newCount = prev + 1;
       if (newCount >= 3) {
         handleSubmit(true); // true: là vi phạm
@@ -361,7 +362,7 @@ const ThucHienBaiThi = ({ setSidebarCollapsed }) => {
 
   return (
     <>
-      <VoHieu onViPham={handleViPham} />
+      <VoHieu onViPham={handleViPham} locked={locked} />
       {locked && (
         <div
           style={{

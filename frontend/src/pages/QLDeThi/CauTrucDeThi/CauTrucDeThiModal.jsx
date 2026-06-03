@@ -169,95 +169,113 @@ const CauTrucDeThiModal = ({ open, onClose, onSuccess, editRecord }) => {
           </Radio.Group>
         </Form.Item>
         {/* Nếu chọn selection, hiển thị danh sách chủ đề + số cơ bản/nâng cao */}
-        <Form.Item shouldUpdate={(prev, cur) => prev.structure?.mode !== cur.structure?.mode || prev.total_questions !== cur.total_questions}>
+        <Form.Item
+          shouldUpdate={(prev, cur) =>
+            prev.structure?.mode !== cur.structure?.mode ||
+            prev.total_questions !== cur.total_questions ||
+            prev.structure?.items !== cur.structure?.items
+          }
+        >
           {() => {
             const mode = form.getFieldValue(['structure', 'mode']) || 'default';
             if (mode !== 'selection') return null;
             return (
               <Form.List name={['structure', 'items']}>
-                {(fields, { add, remove }) => (
-                  <div>
-                    <div style={{ display: 'flex', gap: 8, marginBottom: 6, padding: '0 8px' }}>
-                      <div style={{ width: 220, fontWeight: 600 }}>Dạng bài</div>
-                      <div style={{ width: 120, fontWeight: 600 }}>Số cơ bản</div>
-                      <div style={{ width: 120, fontWeight: 600 }}>Số nâng cao</div>
-                      <div style={{ width: 24 }} />
-                    </div>
+                {(fields, { add, remove }) => {
+                  const items = form.getFieldValue(['structure', 'items']) || [];
+                  const selectedTopics = items.map((it) => it?.topic).filter(Boolean);
+                  return (
+                    <div>
+                      <div style={{ display: 'flex', gap: 8, marginBottom: 6, padding: '0 8px' }}>
+                        <div style={{ width: 220, fontWeight: 600 }}>Dạng bài</div>
+                        <div style={{ width: 120, fontWeight: 600 }}>Số câu cơ bản</div>
+                        <div style={{ width: 120, fontWeight: 600 }}>Số câu nâng cao</div>
+                        <div style={{ width: 24 }} />
+                      </div>
 
-                    {fields.map((field) => (
-                      <Space key={`${field.key}-${field.name}`} style={{ display: 'flex', marginBottom: 8 }} align="start">
-                        <Form.Item
-                          {...field}
-                          name={[field.name, 'topic']}
-                          fieldKey={[field.fieldKey, 'topic']}
-                          rules={[{ required: true, message: 'Chọn dạng bài' }]}
+                      {fields.map((field) => {
+                        const currentTopic = items[field.name]?.topic;
+                        const filteredOptions = topicOptionsByGrade.map((opt) => ({
+                          ...opt,
+                          disabled: selectedTopics.includes(opt.value) && opt.value !== currentTopic,
+                        }));
+
+                        return (
+                          <Space key={`${field.key}-${field.name}`} style={{ display: 'flex', marginBottom: 8 }} align="start">
+                            <Form.Item
+                              {...field}
+                              name={[field.name, 'topic']}
+                              fieldKey={[field.fieldKey, 'topic']}
+                              rules={[{ required: true, message: 'Chọn dạng bài' }]}
+                            >
+                              <Select style={{ width: 220 }} options={filteredOptions} placeholder="Chọn dạng bài" />
+                            </Form.Item>
+                            <Form.Item
+                              {...field}
+                              name={[field.name, 'basic']}
+                              fieldKey={[field.fieldKey, 'basic']}
+                              rules={[{ required: true, message: 'Nhập số câu cơ bản' }]}
+                            >
+                              <InputNumber min={0} style={{ width: 120 }} placeholder="Số Cơ bản" />
+                            </Form.Item>
+                            <Form.Item
+                              {...field}
+                              name={[field.name, 'advanced']}
+                              fieldKey={[field.fieldKey, 'advanced']}
+                              rules={[{ required: true, message: 'Nhập số câu nâng cao' }]}
+                            >
+                              <InputNumber min={0} style={{ width: 120 }} placeholder="Số Nâng cao" />
+                            </Form.Item>
+                            <MinusCircleOutlined onClick={() => remove(field.name)} style={{ marginTop: 8 }} />
+                          </Space>
+                        );
+                      })}
+                      <Form.Item>
+                        <Button
+                          type="dashed"
+                          onClick={() => {
+                            const items = form.getFieldValue(['structure', 'items']) || [];
+                            const total = items.reduce((s, it) => s + Number(it?.basic || 0) + Number(it?.advanced || 0), 0);
+                            const totalQ = Number(form.getFieldValue('total_questions') || 0);
+                            if (totalQ > 0 && total >= totalQ) {
+                              message.error('Không thể thêm dạng bài: tổng số câu theo cấu trúc đã đạt tối đa.');
+                              return;
+                            }
+                            add({ topic: undefined, basic: 0, advanced: 0 });
+                          }}
+                          block
+                          icon={<PlusOutlined />}
                         >
-                          <Select style={{ width: 220 }} options={topicOptionsByGrade} placeholder="Chọn dạng bài" />
-                        </Form.Item>
-                        <Form.Item
-                          {...field}
-                          name={[field.name, 'basic']}
-                          fieldKey={[field.fieldKey, 'basic']}
-                          rules={[{ required: true, message: 'Nhập số câu cơ bản' }]}
-                        >
-                          <InputNumber min={0} style={{ width: 120 }} placeholder="Số Cơ bản" />
-                        </Form.Item>
-                        <Form.Item
-                          {...field}
-                          name={[field.name, 'advanced']}
-                          fieldKey={[field.fieldKey, 'advanced']}
-                          rules={[{ required: true, message: 'Nhập số câu nâng cao' }]}
-                        >
-                          <InputNumber min={0} style={{ width: 120 }} placeholder="Số Nâng cao" />
-                        </Form.Item>
-                        <MinusCircleOutlined onClick={() => remove(field.name)} style={{ marginTop: 8 }} />
-                      </Space>
-                    ))}
-                    <Form.Item>
-                      <Button
-                        type="dashed"
-                        onClick={() => {
+                          Thêm dạng bài
+                        </Button>
+                      </Form.Item>
+                      <div style={{ marginTop: 8 }}>
+                        <b>Tổng theo cấu trúc:</b>{' '}
+                        {(() => {
                           const items = form.getFieldValue(['structure', 'items']) || [];
                           const total = items.reduce((s, it) => s + Number(it?.basic || 0) + Number(it?.advanced || 0), 0);
-                          const totalQ = Number(form.getFieldValue('total_questions') || 0);
-                          if (totalQ > 0 && total >= totalQ) {
-                            message.error('Không thể thêm dạng bài: tổng số câu theo cấu trúc đã đạt tối đa.');
-                            return;
-                          }
-                          add({ topic: undefined, basic: 0, advanced: 0 });
-                        }}
-                        block
-                        icon={<PlusOutlined />}
-                      >
-                        Thêm dạng bài
-                      </Button>
-                    </Form.Item>
-                    <div style={{ marginTop: 8 }}>
-                      <b>Tổng theo cấu trúc:</b>{' '}
-                      {(() => {
-                        const items = form.getFieldValue(['structure', 'items']) || [];
-                        const total = items.reduce((s, it) => s + Number(it?.basic || 0) + Number(it?.advanced || 0), 0);
-                        const totalQ = form.getFieldValue('total_questions') || 0;
-                        const remaining = totalQ - total;
-                        return (
-                          <div>
+                          const totalQ = form.getFieldValue('total_questions') || 0;
+                          const remaining = totalQ - total;
+                          return (
                             <div>
-                              <span>
-                                {total} / {totalQ}
-                              </span>
+                              <div>
+                                <span>
+                                  {total} / {totalQ}
+                                </span>
+                              </div>
+                              <div style={{ color: remaining <= 0 ? '#888' : '#333', marginTop: 6 }}>
+                                <b>Phần còn lại:</b> {remaining} câu
+                              </div>
+                              <div style={{ marginTop: 6, fontSize: 12, color: '#666' }}>
+                                Lưu ý: Các mục cố định sẽ được lấy trước; phần còn lại (nếu có) sẽ áp dụng % Cơ bản / % Nâng cao.
+                              </div>
                             </div>
-                            <div style={{ color: remaining <= 0 ? '#888' : '#333', marginTop: 6 }}>
-                              <b>Phần còn lại:</b> {remaining} câu
-                            </div>
-                            <div style={{ marginTop: 6, fontSize: 12, color: '#666' }}>
-                              Lưu ý: Các mục cố định sẽ được lấy trước; phần còn lại (nếu có) sẽ áp dụng % Cơ bản / % Nâng cao.
-                            </div>
-                          </div>
-                        );
-                      })()}
+                          );
+                        })()}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                }}
               </Form.List>
             );
           }}
